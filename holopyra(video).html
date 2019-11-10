@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+<style>
+#info {
+  position: absolute;
+  top: 2%;
+  width: 100%;
+  padding: 10px;
+  text-align: center;
+  color: #ffff00
+}
+
+body {
+  overflow: hidden;
+}
+
+
+</style>
+</head>
+
+<body>
+<!--div id="info">Holographic Pyramid
+  <br> with Reflector
+  <br>
+</div-->
+<!--
+<div id="v1" style="float:left;margin:2px;width:20vw; height:20vw"><canvas id='view1'></canvas></div>
+<div id="v2" style="float:left;margin:2px;width:20vw; height:20vw"><canvas id='view2'></canvas></div>
+<div id="v3" style="float:left;margin:2px;width:20vw; height:20vw"><canvas id='view3'></canvas></div>
+<div id="v4" style="float:left;margin:2px;width:20vw; height:20vw"><canvas id='view4'></canvas></div>
+-->
+<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+<script src="https://jyunming-chen.github.io/tutsplus/js/KeyboardState.js"></script>
+<script src="js/libs/ammo.js"></script>
+<script type="module">
+//183 ground in mmd
+  import * as THREE from './build/three.module.js';
+
+  import Stats from './jsm/libs/stats.module.js';
+  import { GUI } from './jsm/libs/dat.gui.module.js';
+
+  import { OrbitControls } from './jsm/controls/OrbitControls.js';
+  import { OutlineEffect } from './jsm/effects/OutlineEffect.js';
+  import { MMDLoader } from './jsm/loaders/MMDLoader.js';
+  import { MMDAnimationHelper } from './jsm/animation/MMDAnimationHelper.js';
+  import { Reflector } from 'https://raw.githack.com/mrdoob/three.js/dev/examples/jsm/objects/Reflector.js';
+	var scene, renderer, camera;
+    var WIDTH, HEIGHT;
+    var offset;
+	var keyboard = new KeyboardState();
+  var clock = new THREE.Clock();
+	var pica = [];
+  var bufferScene, bufferTexture = [], mesh, angle = 0;
+  var helper, ikHelper, physicsHelper, effect;
+  var modelFile = ['models/Rin/Rin.pmx', 'models/Wakaba/Wakaba.pmx', 'models/Ritsu/Ritsu.pmx'];
+  var modelPos = [new THREE.Vector3(0, -10, 0), new THREE.Vector3(8, -10, -5), new THREE.Vector3(-8, -10, -5)];
+  var vmdFiles = ['vmds/idle.vmd', 'vmds/walk.vmd', 'vmds/run.vmd', 'vmds/wavefile_v2.vmd'];
+  var bufferCamera = []; //0 front, 1 right, 2 back, 3 left
+  var viewCamera = [], viewRenderer = [], viewScene = [];
+
+
+  Ammo().then(function(AmmoLib) {
+    Ammo = AmmoLib;
+  	init();
+  	animate();
+  });
+
+	function makeTrapezoid(l, t, b) {
+	  var geometry = new THREE.BufferGeometry();
+	  var vertices = [];
+	  var normals = [];
+	  var indices = [];
+	  var uvs = [];
+	  var tmp = (t-b)/2
+/*
+	  vertices.push (-0.5,0,0, 0.5,0,0, 3,l,0, -3,l,0);
+	  normals.push (0,0,1, 0,0,1, 0,0,1, 0,0,1);
+	  indices.push (0,1,2, 0,2,3);
+	  uvs.push (2.5/6,0, 1-2.5/6,0, 1,1, 0,1);
+*/
+	  vertices.push (-b/2,0,0, b/2,0,0, t/2,l,0, -t/2,l,0);
+	  normals.push (0,0,1, 0,0,1, 0,0,1, 0,0,1);
+	  indices.push (0,1,2, 0,2,3);
+	  uvs.push (tmp/t,0, b-tmp/t,0, b,b, 0,b);
+
+	  geometry.setIndex (indices);
+	  geometry.addAttribute ('position', new THREE.Float32BufferAttribute(vertices,3));
+	  geometry.addAttribute ('normal', new THREE.Float32BufferAttribute(normals,3));
+	  geometry.addAttribute ('uvs', new THREE.Float32BufferAttribute(uvs,2));
+
+
+
+	  var verticalMirror = new Reflector( geometry,
+	     {
+						clipBias: 0.003,
+						textureWidth: WIDTH * window.devicePixelRatio,
+						textureHeight: HEIGHT * window.devicePixelRatio,
+						color: 0xffffff,
+						recursion: 1
+		 } );
+
+	  console.log(verticalMirror);
+	  verticalMirror.material.transparent = true;
+	  verticalMirror.material.blending = THREE.MultiplyBlending;
+
+	 //let verticalMirror = new THREE.Mesh (geometry, new THREE.MeshNormalMaterial());
+	 return verticalMirror;
+
+	}
+
+function makeTrapezoid3(l) {
+	var geometry = new THREE.PlaneGeometry (6,l);
+
+	var verticalMirror = new Reflector( geometry,
+	     {
+						clipBias: 0.003,
+						textureWidth: WIDTH * window.devicePixelRatio,
+						textureHeight: HEIGHT * window.devicePixelRatio,
+						color: 0x999999,
+						recursion: 3
+		 } );
+
+
+	let group0 = new THREE.Object3D();
+	group0.add (verticalMirror);
+	verticalMirror.position.set (0, l/2, 0);
+	var group = new THREE.Object3D();
+	group.add (group0);
+
+	group0.rotation.x = Math.PI/2;
+	group0.rotation.z = -Math.PI/2;
+	return group;
+
+}
+
+	function makePerspective(camera) {
+			// set parameters
+		  let r = 0.05;
+		  let theta = 0, phi = 0;
+		  let x = r*Math.sin(theta);
+		  let y = r*Math.sin(phi);
+		  let L = 0.2, near = 0.1;
+		  let left = -(L/2+x);
+		  let right = L/2-x;
+		  let top = L/2-y;
+		  let bottom = -(L/2+y);
+		  let far = 100000//near + L;
+
+		  camera.projectionMatrix.makePerspective (left, right, top, bottom, near, far);
+	}
+
+	function init() {
+	  scene = new THREE.Scene();
+	  scene.fog = new THREE.Fog(0xffffff, 5, 40);
+	  scene.background = new THREE.Color(0xffffff);
+
+	  renderer = new THREE.WebGLRenderer({antialias:true});
+	   WIDTH = window.innerWidth;
+	   HEIGHT = window.innerHeight;
+	  renderer.setSize(WIDTH, HEIGHT);
+	  //renderer.setClearColor(0x888888);
+	  document.body.appendChild(renderer.domElement);
+
+	  camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.5, 1000);
+	  //camera.position.z = 50;
+	  camera.position.set(0,13,0);
+
+	    ///skybox
+    	/*let cubeloader = new THREE.CubeTextureLoader();
+    	cubeloader.crossOrigin = '';
+
+    	let path = 'images/skybox/';
+    	let format = '.jpg';
+    	let urls = [
+    				path + 'right' + format,
+    				path + 'left' + format,
+    				path + 'top' + format,
+    				path + 'bottom' + format,
+    				path + 'front' + format,
+    				path + 'back' + format
+    	];
+
+
+    	let cube = cubeloader.load( urls );
+    	scene.background = cube;*/
+
+
+	  //////////////////////////////////
+	 /* var ww = $('#v1').innerWidth();
+	  var hh = $('#v1').innerHeight();
+	  var view = document.getElementById('view1');
+	  viewCamera[0] = new THREE.PerspectiveCamera(50, ww / hh, 1, 3000);
+	  viewCamera[0].position.set(0, 0, 20);
+	  viewRenderer[0] = new THREE.WebGLRenderer({antialias:true, canvas:view});
+	  viewRenderer[0].setSize(ww, hh);
+
+	  ww = $('#v2').innerWidth();
+	  hh = $('#v2').innerHeight();
+	  view = document.getElementById('view2')
+	  viewCamera[1] = new THREE.PerspectiveCamera(50, ww / hh, 1, 3000);
+	  viewCamera[1].position.set(20, 0, -0.5);
+	  viewRenderer[1] = new THREE.WebGLRenderer({antialias:true, canvas:view});
+	  viewRenderer[1].setSize(ww, hh);
+
+	  ww = $('#v3').innerWidth();
+	  hh = $('#v3').innerHeight();
+	  view = document.getElementById('view3')
+	  viewCamera[2] = new THREE.PerspectiveCamera(50, ww / hh, 1, 3000);
+	  viewCamera[2].position.set(0, 0, -20);
+	  viewRenderer[2] = new THREE.WebGLRenderer({antialias:true, canvas:view});
+	  viewRenderer[2].setSize(ww, hh);
+
+	  ww = $('#v4').innerWidth();
+	  hh = $('#v4').innerHeight();
+	  view = document.getElementById('view4')
+	  viewCamera[3] = new THREE.PerspectiveCamera(50, ww / hh, 1, 3000);
+	  viewCamera[3].position.set(-20, 0, -0.5);
+	  viewRenderer[3] = new THREE.WebGLRenderer({antialias:true, canvas:view});
+	  viewRenderer[3].setSize(ww, hh);
+	  */
+	  ////////////////////////////////////
+
+	  let controls = new OrbitControls(camera, renderer.domElement);
+	  controls.enableKeys = false;
+
+    effect = new OutlineEffect(renderer);
+
+	  window.addEventListener('resize', onWindowResize, false);
+	  //scene.add (new THREE.AxesHelper(10));
+
+    ///////////////////
+     bufferScene = new THREE.Scene();
+
+	 for(let i = 0; i < 4; i++){
+		bufferCamera[i] = new THREE.PerspectiveCamera(60, 1, 0.1, 200);
+		//bufferCamera.position.z = 35;
+		bufferCamera[i].position.set(Math.cos(i*Math.PI/2 )*30, 0, Math.sin(i*Math.PI/2 )*20);
+		bufferCamera[i].lookAt(new THREE.Vector3(0, 0, 0));
+		bufferScene.add(bufferCamera[i]);
+		makePerspective(bufferCamera[i]);
+	}
+
+
+     /*var lightA = new THREE.AmbientLight(0xffffff);
+     bufferScene.add(lightA);*/
+     var lightB = new THREE.DirectionalLight(0xffffff);
+     lightB.position.set(10, 20, 20);
+     bufferScene.add(lightB);
+
+     // Shadow parameters
+     /*renderer.shadowMap.enabled = true;
+     lightB.castShadow = true;
+     lightB.shadow.mapSize.x = 1024;
+     lightB.shadow.mapSize.y = 1024;
+     lightB.shadow.camera.right = 20;
+     lightB.shadow.camera.top = 20;
+     lightB.shadow.camera.left = -20;
+     lightB.shadow.camera.bottom = -20;*/
+     /*renderer.shadowMap.renderSingleSided = false;
+     renderer.shadowMap.renderReverseSided = false;*/
+     //lightB.shadow.bias = -0.001;
+
+     ///ground
+     var ground = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshPhongMaterial());
+     ground.rotation.x = -Math.PI / 2;
+     ground.position.y = -15.5;
+     /*ground.material.userData.outlineParameters = {
+       visible: false,
+       keepAlive: false
+     }*/
+     ground.receiveShadow = true;
+    // bufferScene.add(ground);
+
+	for(let i = 0;i< 4 ; i++)
+		 bufferTexture[i] = new THREE.WebGLRenderTarget(
+		   1024, 1024, {
+			 minFilter: THREE.LinearFilter,
+			 magFilter: THREE.NearestFilter
+		   });
+     ///////////////////
+
+  	let loader = new THREE.TextureLoader();
+
+	// checkerboard floor
+  	//let tex  = loader.load ("https://i.imgur.com/p8CRm9W.jpg");
+  	//tex.repeat.set (10,10);
+  	//tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+
+	  /*let floor = new THREE.Mesh (new THREE.PlaneGeometry (100,100),
+	  	new THREE.MeshBasicMaterial({map: tex}));
+	  floor.rotation.x = -Math.PI/2;*/
+	//  scene.add (floor);
+
+	// picachu
+  	//let picatex  = loader.load ("https://i.imgur.com/GMq5omF.png");
+
+	for(let i = 0;i< 4 ; i++)
+		pica[i] = new THREE.Mesh (new THREE.PlaneGeometry (4.73, 4.73),
+	  	new THREE.MeshBasicMaterial({map: bufferTexture[i].texture, transparent: true}));
+
+  var floor = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshBasicMaterial({color:0x000000} ));
+  floor.rotation.x = -Math.PI/2;
+  floor.position.y = -1;
+  scene.add(floor);
+  var gridHelper = new THREE.GridHelper( 100, 50 , 'red', 'white');
+  //scene.add(gridHelper);
+  /////////
+
+  for(let i=0 ; i<3; i++){
+
+	setTimeout(initModel(modelFile[i], vmdFiles[3], modelPos[i])
+			   , 100);
+
+  }
+
+  /////////
+	//offset = 4.73/2+0.5//1.5;
+		offset = 4;
+
+	  pica[0].position.set (0,0,offset);
+	  pica[0].rotation.y = Math.PI;
+	  pica[0].rotation.x = -Math.PI/2;
+	  pica[0].rotation.order = 'YXZ'
+	  scene.add (pica[0]);
+
+
+	  pica[1].position.set (offset,0,0);
+	  pica[1].rotation.y = -Math.PI/2;
+	  pica[1].rotation.x = -Math.PI/2;
+	  pica[1].rotation.order = 'YXZ'
+	  scene.add (pica[1]);
+
+
+	  pica[2].position.set (0,0,-offset);
+	  //pica[2].rotation.y = Math.PI/2;
+	  pica[2].rotation.x = -Math.PI/2;
+	  pica[2].rotation.order = 'YXZ'
+	  scene.add (pica[2]);
+
+
+	  pica[3].position.set (-offset,0,0);
+	  pica[3].rotation.y = Math.PI/2;
+	  pica[3].rotation.x = -Math.PI/2;
+	  pica[3].rotation.order = 'YXZ'
+	  scene.add (pica[3]);
+
+  //////////////////////////////////////////////////////////////
+
+  var bottom = 1
+  var top = 6 +11.395
+  var lateral = 4.5 +10
+  var oneside = (top - bottom)/2
+  var l = Math.sqrt (lateral*lateral - oneside*oneside);
+  var theta = Math.acos (oneside/l);
+  //var l = Math.sqrt (4.5*4.5 - 2.5*2.5);
+  //var theta = Math.acos (2.5/l);
+  //console.log(7.5*Math.cos(theta))
+  var trape;
+  //camera.position.y = lateral*Math.cos(theta)/2;
+  //offset = 9.22//lateral*Math.cos(theta)/2
+/*
+  trape = makeTrapezoid (l, top, bottom);
+  scene.add( trape);
+  trape.position.set (0.5,0,0)
+  trape.rotation.y = Math.PI/2;
+  trape.rotation.x = Math.PI/2 - theta;
+  trape.rotation.order = 'YXZ';
+
+  trape = makeTrapezoid (l, top, bottom)
+  scene.add( trape);
+  trape.position.set (-.5,0,0)
+  trape.rotation.y = -Math.PI/2;
+  trape.rotation.x = Math.PI/2 - theta;
+  trape.rotation.order = 'YXZ';
+
+  trape = makeTrapezoid (l, top, bottom)
+  scene.add( trape);
+  trape.position.set (0,0,.5)
+  trape.rotation.x = Math.PI/2 - theta;
+
+  trape = makeTrapezoid (l, top, bottom)
+  scene.add( trape);
+  trape.position.set (0,0,-.5)
+  trape.rotation.y = Math.PI;
+  trape.rotation.x = Math.PI/2 - theta;
+  trape.rotation.order = 'YXZ';
+*/
+
+  /////////////////////////
+  //test
+  /*let mat = new THREE.MeshBasicMaterial({color:0x00ff00});
+  mat.transparent = true
+  mat.blending = THREE.MultiplyBlending;
+  let plane = new THREE.Mesh(new THREE.PlaneGeometry(10,10), mat);
+  plane.position.set(0,5,2);
+  scene.add(plane);*/
+  /*
+  let mesh = new THREE.Mesh(new THREE.BoxGeometry(5,5,5), new THREE.MeshBasicMaterial({color:0xff0000}));
+  mesh.position.set(-20,2,0);
+  scene.add(mesh);
+
+  let mesh2 = new THREE.Mesh(new THREE.BoxGeometry(5,5,5), new THREE.MeshBasicMaterial({color:0x00ff00}));
+  mesh2.position.set(20,2,0);
+  scene.add(mesh2);
+
+  let mesh3 = new THREE.Mesh(new THREE.BoxGeometry(5,5,5), new THREE.MeshBasicMaterial({color:0x0000ff}));
+  mesh3.position.set(0,2,20);
+  scene.add(mesh3);
+
+  let mesh4 = new THREE.Mesh(new THREE.BoxGeometry(5,5,5), new THREE.MeshBasicMaterial({color:0x000000}));
+  mesh4.position.set(0,2,-20);
+  scene.add(mesh4);
+  */
+}
+
+	function onWindowResize() {
+	  camera.aspect = window.innerWidth / window.innerHeight;
+	  camera.updateProjectionMatrix();
+	  renderer.setSize(window.innerWidth, window.innerHeight);
+	}
+
+	function animate() {
+	  requestAnimationFrame(animate);
+
+
+	  keyboard.update();
+	  if (keyboard.down ('U')){
+	  	offset += 0.1;
+		console.log(offset);
+	}
+	  if (keyboard.down ('D')){
+	  	offset -= 0.1;
+	    console.log (offset);
+	}
+
+	  pica[0].position.set (0,0,offset);
+	  pica[1].position.set (offset,0,0);
+	  pica[2].position.set (0,0,-offset);
+	  pica[3].position.set (-offset,0,0);
+
+
+		/*mesh.position.z += turn;
+		mesh.rotation.x += 0.1;
+		mesh.rotation.y += 0.1;
+		if( mesh.position.z <= -30)
+		  turn*=-1;
+		else if( mesh.position.z >= 40 )
+		  turn*=-1;*/
+		  angle += 0.01;
+		  //camera.position.set( -10*Math.cos(angle), 5, 10*Math.sin(angle));
+		  //camera.lookAt(0, 2, 0);
+		  //camera.rotation.y = angle ;
+
+
+		helper.update(clock.getDelta());
+		effect.render(scene, camera);
+
+		for(let i = 0 ;i < 4 ;i++){
+			makePerspective(bufferCamera[i]);
+			renderer.setRenderTarget(bufferTexture[i]);
+			renderer.render(bufferScene, bufferCamera[i]);
+			renderer.setRenderTarget(null);
+			//viewRenderer[i].render(scene, viewCamera[i]);
+		}
+		//viewRenderer[0].render(scene, viewCamera[0]);
+		renderer.render(scene, camera);
+	}
+
+  function initModel(model, vmd, pos){
+    ///model
+
+    function onProgress(xhr) {
+      if (xhr.lengthComputable) {
+        var percentComplete = xhr.loaded / xhr.total * 100;
+        console.log(Math.round(percentComplete, 2) + '% downloaded');
+      }
+    };
+
+    function onError(xhr) {};
+
+    var loader = new MMDLoader();
+    console.log(model);
+
+    helper = new MMDAnimationHelper({
+      afterglow: 2.0
+    });
+
+    loader.loadWithAnimation(model, vmd, function(mmd){
+        mesh = mmd.mesh;
+        //mesh.position.set(0, -15, 0);
+		mesh.position.copy(pos);
+        mesh.castShadow = true;
+        bufferScene.add(mesh);
+
+        helper.add( mesh, {
+					animation: mmd.animation,
+					physics: true
+				} );
+
+        ikHelper = helper.objects.get( mesh ).ikSolver.createHelper();
+				ikHelper.visible = false;
+				bufferScene.add( ikHelper );
+
+				physicsHelper = helper.objects.get( mesh ).physics.createHelper();
+				physicsHelper.visible = false;
+				bufferScene.add( physicsHelper );
+
+    },onProgress, onError);
+
+
+  }
+</script>
+</body>
+
+</html>

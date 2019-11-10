@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html >
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AR</title>
+  <style>
+    html {
+      overflow: hidden;
+    }
+    #mySelect{
+      position: absolute;
+      left: 40vw;
+      z-index: 5;
+      width: 15vw;
+      height: 10vw;
+      font-size: 30px;
+    }
+    #mySlider {
+      top: 0;
+      right: -350px;
+      width: 360px;
+
+      position: fixed;
+      z-index: 9;
+
+    }
+
+    #myContent {
+      //background: #ffffff;
+      background-color: rgba(255, 255, 255, .8);
+      text-align: center;
+      padding-top: 10px;
+      border:5px #aaaaee solid;
+    }
+
+    #myTab {
+      position: absolute;
+      top: 20px;
+      left: -29px;
+      width: 24px;
+      //background: #ffffff;
+      background-color: rgba(255, 255, 255, .8);
+      color: #000000;
+
+      text-align: center;
+      padding: 9px 0;
+      border:5px #aaaaee solid;
+      -moz-border-radius-topleft: 10px;
+      -moz-border-radius-bottomleft: 10px;
+      -webkit-border-top-left-radius: 10px;
+      -webkit-border-bottom-left-radius: 10px;
+    }
+
+    #myTab span {
+      display: block;
+      height: 3vh;
+      padding: 1px 0;
+      line-height: 12px;
+      text-transform: uppercase;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <select id="mySelect">
+    <option value="0">藪貓</option>
+    <option value="1">朱鷺</option>
+  </select>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/104/three.min.js"></script>
+  <script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/r16/Stats.min.js"></script>
+  <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/libs/mmdparser.min.js"></script>
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/libs/ammo.js"></script>
+
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/loaders/TGALoader.js"></script>
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/loaders/MMDLoader.js"></script>
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/effects/OutlineEffect.js"></script>
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/animation/CCDIKSolver.js"></script>
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/animation/MMDPhysics.js"></script>
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/animation/MMDAnimationHelper.js"></script>
+  <!-- ar.js -->
+  <script src="build/ar.js"></script>
+  <script>THREEx.ArToolkitContext.baseURL = ''</script>
+  <script type="text/javascript">
+    var frame, scene, camera, renderer, light, controls;
+    var arToolkitSource, arToolkitContext, markeHiro;
+    var stats;
+    var loader, helper, ikHelper, physicsHelper, effect;
+    var modelFile = 'models/serval/serval.pmx';
+    var vmdFiles = ['vmds/servaldance.vmd'];
+    var vpdFiles = ['vpds/sing.vpd'];
+    var models = [ {name:'serval', model: 'models/serval/serval.pmx', vmd: 'vmds/servaldance.vmd' },
+                    {name:'toki', model: 'models/toki/toki.pmx', vmd: 'vmds/sing.vmd' } ];
+    var clock = new THREE.Clock();
+    var meshs = [];
+    var mySelector = 0;
+    var sceneHUD, cameraHUD;
+
+    $(function(){
+
+        ////切換model
+       $('#mySelect').change(function(){
+         let selectedObject = markeHiro.getObjectByName(models[mySelector].name);
+         markeHiro.remove(selectedObject);
+         helper.remove(selectedObject);
+         mySelector = $(this).val();
+         loadModels(mySelector);
+       });
+
+       $('#pic0').click(function(){
+         if(mySelector != 0){
+           let selectedObject = markeHiro.getObjectByName(models[mySelector].name);
+           markeHiro.remove(selectedObject);
+           helper.remove(selectedObject);
+           mySelector = 0;
+           loadModels(mySelector);
+           }
+       });
+       $('#pic1').click(function(){
+         if(mySelector != 1){
+           let selectedObject = markeHiro.getObjectByName(models[mySelector].name);
+           markeHiro.remove(selectedObject);
+           helper.remove(selectedObject);
+           mySelector = 1;
+           loadModels(mySelector);
+         }
+       });
+    });
+
+
+    Ammo().then(function(AmmoLib) {
+      Ammo = AmmoLib;
+      init();
+      animate();
+    });
+
+
+    function init() {
+
+      renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: true
+      });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setClearColor(new THREE.Color('lightgrey'), 0);
+      renderer.domElement.style.position = 'absolute'
+    	renderer.domElement.style.top = '0px'
+    	renderer.domElement.style.left = '0px'
+      document.body.appendChild(renderer.domElement);
+
+      scene = new THREE.Scene();
+
+    /*  camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 2000);
+      camera.position.z = 20;*/
+      camera = new THREE.Camera();
+	    scene.add(camera);
+
+      //////HUD
+      //initHUD();
+
+      ////////////////////////////////////////////////////////////////////////////////
+    	//          handle arToolkitSource
+    	////////////////////////////////////////////////////////////////////////////////
+    	arToolkitSource = new THREEx.ArToolkitSource({
+    		// to read from the webcam
+    		sourceType : 'webcam',
+
+    		// // to read from an image
+    	//	 sourceType : 'image',
+    	//	 sourceUrl : THREEx.ArToolkitContext.baseURL + 'data/images/img.jpg',
+    		// to read from a video
+    		// sourceType : 'video',
+    		// sourceUrl : THREEx.ArToolkitContext.baseURL + '../data/videos/headtracking.mp4',
+    	})
+    	arToolkitSource.init(function onReady(){
+    		onResize()
+    	})
+
+    	// handle resize
+    	window.addEventListener('resize', function(){
+    		onResize()
+    	})
+    	function onResize(){
+    		arToolkitSource.onResize()
+    		arToolkitSource.copySizeTo(renderer.domElement)
+    		if( arToolkitContext.arController !== null ){
+    			arToolkitSource.copySizeTo(arToolkitContext.arController.canvas)
+    		}
+    	}
+    	////////////////////////////////////////////////////////////////////////////////
+    	//          initialize arToolkitContext
+    	////////////////////////////////////////////////////////////////////////////////
+
+      // create atToolkitContext
+    	arToolkitContext = new THREEx.ArToolkitContext({
+    		cameraParametersUrl: THREEx.ArToolkitContext.baseURL + 'data/data/camera_para.dat',
+    		detectionMode: 'mono',
+        maxDetectionRate: 30,
+        canvasWidth:80*3,
+        canvasHeight: 60*3,
+    	})
+    	// initialize it
+    	arToolkitContext.init(function onCompleted(){
+    		// copy projection matrix to camera
+    		camera.projectionMatrix.copy( arToolkitContext.getProjectionMatrix() );
+    	})
+      markeHiro = addMarkeHiro();
+      scene.add(markeHiro);
+      ////////////////////////////////////////////////////////////////////////////////
+      stats = new Stats();
+      stats.showPanel(0);
+      stats.domElement.style.position = 'absolute';
+      stats.domElement.style.left = '0px';
+      stats.domElement.style.top = '0px';
+      document.body.appendChild(stats.domElement);
+    //  controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+      effect = new THREE.OutlineEffect(renderer);
+
+      light = new THREE.DirectionalLight(0xffffff);
+      light.position.set(50, 100, 0);
+      markeHiro.add(light);
+
+
+      /////Models
+      loader = new THREE.MMDLoader();
+
+      helper = new THREE.MMDAnimationHelper({
+        afterglow: 2.0
+      });
+      loadModels(mySelector);
+    }
+
+    function animate() {
+      stats.begin();
+      stats.end();
+      requestAnimationFrame(animate);
+      if(arToolkitSource.ready === false) return;
+      arToolkitContext.update(arToolkitSource.domElement);
+
+      render();
+    }
+
+    function render() {
+    //  renderer.clear();
+      renderer.render(scene, camera);
+    //  renderer.clearDepth();
+    //  renderer.render(sceneHUD, cameraHUD);
+      helper.update(clock.getDelta());
+      effect.render(scene, camera);
+    }
+
+    function addMarkeHiro(){
+      let markerRoot = new THREE.Group();
+      var artoolkitMarker = new THREEx.ArMarkerControls(arToolkitContext, markerRoot, {
+    		type : 'pattern',
+    		patternUrl : THREEx.ArToolkitContext.baseURL + 'data/data/patt.hiro'
+    		// patternUrl : THREEx.ArToolkitContext.baseURL + 'data/data/patt.kanji'
+    	})
+
+      return markerRoot;
+    }
+    ///model
+    function onProgress(xhr) {
+      if (xhr.lengthComputable) {
+        var percentComplete = xhr.loaded / xhr.total * 100;
+        console.log(Math.round(percentComplete, 2) + '% downloaded');
+      }
+    };
+
+    function onError(xhr) {};
+
+    function loadModels(index){
+
+        loader.loadWithAnimation(models[index].model,models[index].vmd,
+          function(mmd) {
+            function loadEnd(_mmd) {
+              mesh = _mmd.mesh;
+              mesh.scale.set(0.05, 0.05, 0.05);
+              //meshs.push(mesh);
+              mesh.name = models[index].name;
+              markeHiro.add(mesh);
+
+              helper.add(mesh, {
+                animation: _mmd.animation,
+                physics: true
+              });
+
+
+              /*ikHelper = helper.objects.get(mesh).ikSolver.createHelper();
+              ikHelper.visible = false;
+              markeHiro.add(ikHelper);
+
+              physicsHelper = helper.objects.get(mesh).physics.createHelper();
+              physicsHelper.visible = false;
+              markeHiro.add(physicsHelper);*/
+            };
+            setTimeout(loadEnd(mmd), 10);
+          },
+          onProgress, onError);
+
+    }
+    function initHUD(){
+      sceneHUD = new THREE.Scene();
+      whRatio = window.innerWidth / window.innerHeight;
+    	halfH = 10;
+    	halfW = whRatio * halfH;
+      cameraHUD = new THREE.OrthographicCamera(-halfW, halfW, halfH, -halfH, -10, 10);
+      cameraHUD.position.z = 10;
+
+      buttonGroup = new THREE.Group();
+
+      let button1 = new THREE.Mesh(new THREE.PlaneGeometry(halfH/3, halfH/3), new THREE.MeshBasicMaterial({
+        color:"yellow"
+      }));
+      button1.position.set(halfW/3 + halfH/15 , halfH/2 + halfH/4, 0 );
+      buttonGroup.add(button1);
+
+      let button2 = new THREE.Mesh(new THREE.PlaneGeometry(halfH/3, halfH/3), new THREE.MeshBasicMaterial({
+        color:"red"
+      }));
+      button2.position.set(halfW/3 + halfH/15 , halfH/4 , 0 );
+      buttonGroup.add(button2);
+
+      let button3 = new THREE.Mesh(new THREE.PlaneGeometry(halfH/3, halfH/3), new THREE.MeshBasicMaterial({
+        color:"blue"
+      }));
+      button3.position.set(halfW/3 + halfH/15 , -halfH/4 , 0 );
+      buttonGroup.add(button3);
+
+      let button4 = new THREE.Mesh(new THREE.PlaneGeometry(halfH/3, halfH/3), new THREE.MeshBasicMaterial({
+        color:"white"
+      }));
+      button4.position.set(halfW/3 + halfH/15 , -halfH/2 - halfH/4, 0 );
+      buttonGroup.add(button4);
+      //document.addEventListener('mousedown', resetPos, false);
+
+      sceneHUD.add(buttonGroup);
+      renderer.autoClear = false;
+    }
+  </script>
+</body>
+</html>

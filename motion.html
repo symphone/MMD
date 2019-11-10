@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible">
+  <title>MMD motion&shadow</title>
+  <style>
+    html {
+      overflow: hidden;
+    }
+    #loading{
+      z-index: 1;
+      padding: 10px 10px 5px;
+      background: #ff2db9;
+      left: 50%;
+      top: 50%;
+      color: #fff;
+      position: fixed;
+      width: 150px;
+      height: 30px;
+      text-align: center;
+      box-shadow: 2px 2px 10px;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id='loading'>NOW LOADING...</div>
+  <!--script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/103/three.min.js"></script>
+  <script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/r16/Stats.min.js"></script>
+
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/libs/mmdparser.min.js"></script>
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/libs/ammo.js"></script>
+
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/loaders/TGALoader.js"></script>
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/loaders/MMDLoader.js"></script>
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/effects/OutlineEffect.js"></script>
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/animation/CCDIKSolver.js"></script>
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/animation/MMDPhysics.js"></script>
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/animation/MMDAnimationHelper.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.5.1/dat.gui.min.js"></script-->
+
+  <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+  <script src="js/libs/ammo.js"></script>
+  <script type="module">
+
+  import * as THREE from './build/three.module.js';
+
+  import Stats from './jsm/libs/stats.module.js';
+  import { GUI } from './jsm/libs/dat.gui.module.js';
+
+  import { OrbitControls } from './jsm/controls/OrbitControls.js';
+  import { OutlineEffect } from './jsm/effects/OutlineEffect.js';
+  import { MMDLoader } from './jsm/loaders/MMDLoader.js';
+  import { MMDAnimationHelper } from './jsm/animation/MMDAnimationHelper.js';
+
+    var frame, scene, camera, renderer, light, controls;
+    var stats;
+    var helper, ikHelper, physicsHelper, effect;
+    var modelFile = 'models/Rin/Rin.pmx';
+    var vmdFiles = ['vmds/idle.vmd', 'vmds/walk.vmd', 'vmds/run.vmd'];
+    var clock = new THREE.Clock(),
+      clock2 = new THREE.Clock();;
+    var mesh;
+    var myActions = [],
+      settings;
+    var idleWeight, walkWeight, runWeight;
+    var period = 3;
+    var pose1 = {
+      value: 0
+    }
+    var pose2 = {
+      value: 1
+    }
+    var keys = [{
+      s: 0,
+      pose: pose1
+    }, {
+      s: 0.05,
+      pose: pose2
+    }, {
+      s: 0.1,
+      pose: pose1
+    }, {
+      s: 1,
+      pose: pose1
+    }];
+
+    Ammo().then(function(AmmoLib) {
+      Ammo = AmmoLib;
+      init();
+
+    });
+
+
+    function init() {
+
+      renderer = new THREE.WebGLRenderer({
+        antialias: true
+      });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setClearColor(0xffffff);
+      document.body.appendChild(renderer.domElement);
+
+      scene = new THREE.Scene();
+
+      camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 500);
+      camera.position.z = 30;
+
+      stats = new Stats();
+      stats.showPanel(0);
+      stats.domElement.style.position = 'absolute';
+      stats.domElement.style.left = '0px';
+      stats.domElement.style.top = '0px';
+      document.body.appendChild(stats.domElement);
+      controls = new OrbitControls(camera, renderer.domElement);
+
+      effect = new OutlineEffect(renderer);
+      ///light
+      var ambient = new THREE.AmbientLight(0x666666, 0.3);
+      scene.add(ambient);
+      light = new THREE.DirectionalLight(0xffffff);
+      light.position.set(-15, 15, 15);
+      scene.add(light);
+
+      ///ground
+      var ground = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshPhongMaterial());
+      ground.rotation.x = -Math.PI / 2;
+      ground.position.y = -15.5;
+      ground.material.userData.outlineParameters = {
+        visible: false,
+        keepAlive: false
+      }
+      ground.receiveShadow = true;
+      scene.add(ground);
+
+      // Shadow parameters
+      renderer.shadowMap.enabled = true;
+      light.castShadow = true;
+      light.shadow.mapSize.x = 1024;
+      light.shadow.mapSize.y = 1024;
+      light.shadow.camera.right = 20;
+      light.shadow.camera.top = 20;
+      light.shadow.camera.left = -20;
+      light.shadow.camera.bottom = -20;
+      /*renderer.shadowMap.renderSingleSided = false;
+      renderer.shadowMap.renderReverseSided = false;*/
+      light.shadow.bias = -0.001;
+      ///model
+
+      function onProgress(xhr) {
+        if (xhr.lengthComputable) {
+          var percentComplete = xhr.loaded / xhr.total * 100;
+          console.log(Math.round(percentComplete, 2) + '% downloaded');
+        }
+      };
+
+      function onError(xhr) {};
+
+      var loader = new MMDLoader();
+      console.log(modelFile);
+
+      helper = new MMDAnimationHelper({
+        afterglow: 2.0
+      });
+
+      loader.load(modelFile,
+        function(mmd) {
+          function loadEnd(_mmd) {
+            mesh = _mmd;
+            mesh.castShadow = true;
+            //mesh.receiveShadow = true;
+            mesh.position.set(0, -15, 0);
+            scene.add(mesh);
+
+
+            helper.add(mesh, {
+              physics: true
+            });
+
+
+
+            ikHelper = helper.objects.get(mesh).ikSolver.createHelper();
+            ikHelper.visible = false;
+            scene.add(ikHelper);
+
+            physicsHelper = helper.objects.get(mesh).physics.createHelper();
+            physicsHelper.visible = false;
+            scene.add(physicsHelper);
+
+            initGUI();
+
+            var objects = helper.objects.get(mesh);
+            objects.mixer = new THREE.AnimationMixer(mesh);
+            var weight = ['idleWeight', 'walkWeight', 'runWeight'];
+            for (let i = 0; i < vmdFiles.length; i++) {
+              loader.loadAnimation(vmdFiles[i], mesh, function(vmd) {
+                setAction(objects.mixer.clipAction(vmd), i, weight[i]);
+
+                if(i === vmdFiles.length-1){
+                  $('#loading').hide(1000);
+                  animate();
+                }
+              }, onProgress, onError);
+            }
+
+
+          };
+          setTimeout(loadEnd(mmd), 10);
+        },
+        onProgress, onError);
+
+      /////
+      window.addEventListener('resize', onWindowResize, false);
+
+    }
+
+    function animate() {
+      stats.begin();
+      stats.end();
+
+
+      getWeight();
+
+      updateWeightSliders();
+
+
+    //  if (mesh != undefined)
+        keyFrame();
+
+      requestAnimationFrame(animate);
+      render();
+    }
+
+    function render() {
+      renderer.render(scene, camera);
+      helper.update(clock.getDelta());
+      effect.render(scene, camera);
+    }
+
+    function setAction(clip, i, weight) {
+      myActions[i] = clip;
+      myActions[i].play();
+      myActions[i].setEffectiveWeight(settings[weight]);
+    }
+
+    function updateWeightSliders() {
+    //  if (idleWeight != undefined)
+        settings['idleWeight'] = idleWeight;
+    //  if (walkWeight != undefined)
+        settings['walkWeight'] = walkWeight;
+    //  if (runWeight != undefined)
+        settings['runWeight'] = runWeight;
+
+    }
+
+    function getWeight() {
+    //  if (myActions[0] != undefined)
+        idleWeight = myActions[0].getEffectiveWeight();
+    //  if (myActions[1] != undefined)
+        walkWeight = myActions[1].getEffectiveWeight();
+    //  if (myActions[2] != undefined)
+        runWeight = myActions[2].getEffectiveWeight();
+
+    }
+
+    function setWeight(action, weight) {
+
+      action.enabled = true;
+      action.setEffectiveTimeScale(1);
+      action.setEffectiveWeight(weight);
+    }
+
+    function initGUI() {
+      var gui = new GUI();
+      gui.domElement.id = 'gui';
+      var dictionary = mesh.morphTargetDictionary;
+
+      settings = {
+        'idleWeight': 0.0,
+        'walkWeight': 0.0,
+        'runWeight': 1.0,
+        'from walk to idle': function() {
+          executeCrossFade(myActions[1], myActions[0], 1.0);
+        },
+        'from idle to walk': function() {
+          executeCrossFade(myActions[0], myActions[1], 0.5);
+        },
+        'from walk to run': function() {
+          executeCrossFade(myActions[1], myActions[2], 2.5);
+        },
+        'from run to walk': function() {
+          executeCrossFade(myActions[2], myActions[1], 3.0);
+        }
+      }
+
+      var motion = gui.addFolder('motion');
+      motion.add(settings, 'idleWeight', 0.0, 1.0, 0.01).listen().onChange(function(weight) {
+        setWeight(myActions[0], weight);
+      });
+      motion.add(settings, 'walkWeight', 0.0, 1.0, 0.01).listen().onChange(function(weight) {
+        setWeight(myActions[1], weight);
+      });
+      motion.add(settings, 'runWeight', 0.0, 1.0, 0.01).listen().onChange(function(weight) {
+        setWeight(myActions[2], weight);
+      });
+
+      var crossFading = gui.addFolder('Crossfading');
+      crossFading.add(settings, 'from walk to idle');
+      crossFading.add(settings, 'from idle to walk');
+      crossFading.add(settings, 'from walk to run');
+      crossFading.add(settings, 'from run to walk');
+
+      motion.open();
+      crossFading.open();
+    }
+
+    function executeCrossFade(startAction, endAction, duration) {
+      setWeight(endAction, 1);
+      endAction.time = 0;
+      startAction.crossFadeTo(endAction, duration, false);
+
+    }
+
+    function keyFrame() {
+
+      let t = clock2.getElapsedTime() % period;
+      let i;
+      let s = t / period;
+
+
+      for (i = 1; i < keys.length; i++) {
+        if (keys[i].s > s)
+          break;
+      }
+
+      i = i - 1;
+
+      let tt = (s - keys[i].s) / (keys[i + 1].s - keys[i].s);
+      let value = (1 - tt) * keys[i].pose.value + tt * keys[i + 1].pose.value;
+      mesh.morphTargetInfluences[0] = value;
+
+    }
+
+    function onWindowResize() {
+
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+  </script>
+
+</body>
+
+</html>

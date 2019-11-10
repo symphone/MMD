@@ -1,0 +1,97 @@
+<script id="vsFilter2" type="x-shader/x-vertex">
+    varying vec2 vUv;
+    void main() {
+        gl_Position = projectionMatrix* modelViewMatrix * vec4( position, 1.0);
+        vUv = uv;
+    }
+  </script>
+  <script id="fsFilter2" type="x-shader/x-fragment">
+    uniform sampler2D texture;
+    varying vec2 vUv;
+    uniform vec2 center[100];
+  	uniform float grain;
+    uniform float radius;
+    uniform float theta;
+
+
+    void main() {
+      vec4 color;
+
+      float a = 1.5, b = 0.5, c = 0.5;
+      float _a = cos(theta)*a - sin(theta)*b, _b = sin(theta)*a + cos(theta)*b;
+      float dis = abs( _a*vUv.x + _b*vUv.y + c)/sqrt(_a*_a+_b*_b);
+
+      if(dis < 0.02){
+        color = texture2D(texture, vUv);
+        if(color.rg != vec2(1.0, 1.0))
+          gl_FragColor = vec4(color.rgb, 1.0);
+        else
+          discard;
+      }
+      else if(dis < 0.04){
+        color = texture2D(texture, vUv);
+        if(color.rg != vec2(1.0, 1.0))
+          gl_FragColor = vec4(color.rgb, 0.9);
+        else
+          discard;
+      }
+      else if(dis < 0.06){
+        color = texture2D(texture, vUv);
+        if(color.rg != vec2(1.0, 1.0))
+          gl_FragColor = vec4(color.rgb, 0.8);
+        else
+          discard;
+      }
+      else if(dis < 0.08){
+        color = texture2D(texture, vUv);
+        if(color.rg != vec2(1.0, 1.0))
+          gl_FragColor = vec4(color.rgb, 0.7);
+        else
+          discard;
+      }
+      else if(dis < 0.10){
+        color = texture2D(texture, vUv);
+        if(color.rg != vec2(1.0, 1.0))
+          gl_FragColor = vec4(color.rgb, 0.6);
+        else
+          discard;
+      }
+      else if(dis < 0.12){
+        color = texture2D(texture, vUv);
+        if(color.rg != vec2(1.0, 1.0))
+          gl_FragColor = vec4(color.rgb, 0.5);
+        else
+          discard;
+      }
+      else if(dis < 0.14){
+        color = texture2D(texture, vUv);
+        if(color.rg != vec2(1.0, 1.0))
+          gl_FragColor = vec4(color.rgb, 0.4);
+        else
+          discard;
+      }
+      else if(dis < 0.16){
+        color = texture2D(texture, vUv);
+        if(color.rg != vec2(1.0, 1.0))
+          gl_FragColor = vec4(color.rgb, 0.3);
+        else
+          discard;
+      }
+      else if(dis < 0.18){
+        color = texture2D(texture, vUv);
+        if(color.rg != vec2(1.0, 1.0))
+          gl_FragColor = vec4(color.rgb, 0.2);
+        else
+          discard;
+      }
+      else if(dis < 0.20){
+        color = texture2D(texture, vUv);
+        if(color.rg != vec2(1.0, 1.0))
+          gl_FragColor = vec4(color.rgb, 0.1);
+        else
+          discard;
+      }
+      else
+        discard;
+    }
+  </script>

@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MMD test</title>
+  <style>
+    html {
+      overflow: hidden;
+    }
+  </style>
+</head>
+
+<body>
+  <!--script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/103/three.min.js"></script>
+  <script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/r16/Stats.min.js"></script>
+
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/libs/mmdparser.min.js"></script>
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/libs/ammo.js"></script>
+
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/loaders/TGALoader.js"></script>
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/loaders/MMDLoader.js"></script>
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/effects/OutlineEffect.js"></script>
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/animation/CCDIKSolver.js"></script>
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/animation/MMDPhysics.js"></script>
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/animation/MMDAnimationHelper.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.5.1/dat.gui.min.js"></script-->
+  <script src="js/libs/ammo.js"></script>
+  <script type="module">
+
+    import * as THREE from './build/three.module.js';
+
+    import Stats from './jsm/libs/stats.module.js';
+		import { GUI } from './jsm/libs/dat.gui.module.js';
+
+    import { OrbitControls } from './jsm/controls/OrbitControls.js';
+		import { OutlineEffect } from './jsm/effects/OutlineEffect.js';
+		import { MMDLoader } from './jsm/loaders/MMDLoader.js';
+		import { MMDAnimationHelper } from './jsm/animation/MMDAnimationHelper.js';
+
+    var frame, scene, camera, renderer, light, controls;
+    var stats;
+    var helper, ikHelper, physicsHelper, effect;
+    var modelFile = 'models/Rin/Rin.pmx';
+    var vmdFiles = ['vmds/idle.vmd', 'vmds/walk.vmd', 'vmds/run.vmd'];
+    var vpdFiles = ['vpds/idle.vpd'];
+    var clock = new THREE.Clock();
+    var mesh, world, boxes = [];
+//    var idleAction, walkAction, runAction;
+  //  var idleWeight, walkWeight, runWeight;
+    var myActions = [],
+      settings;
+
+    Ammo().then(function(AmmoLib) {
+      Ammo = AmmoLib;
+
+      init();
+      animate();
+    });
+
+
+    function init() {
+
+      renderer = new THREE.WebGLRenderer();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setClearColor(0xffffff);
+      document.body.appendChild(renderer.domElement);
+
+      scene = new THREE.Scene();
+
+      camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 2000);
+      camera.position.z = 50;
+
+      stats = new Stats();
+      stats.showPanel(0);
+      stats.domElement.style.position = 'absolute';
+      stats.domElement.style.left = '0px';
+      stats.domElement.style.top = '0px';
+      document.body.appendChild(stats.domElement);
+      controls = new OrbitControls(camera, renderer.domElement);
+
+      effect = new OutlineEffect(renderer);
+
+      light = new THREE.DirectionalLight(0xffffff);
+      light.position.set(50, 100, 0);
+      scene.add(light);
+
+      ///ground
+      let loaderT = new THREE.TextureLoader();
+      loaderT.crossOrigin = '';
+      let wood_ground = loaderT.load('images/wood_ground.jpg');
+      wood_ground.repeat.set(5, 5);
+      wood_ground.wrapS = THREE.RepeatWrapping;
+      wood_ground.wrapT = THREE.RepeatWrapping;
+
+      var ground = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshPhongMaterial({
+        map: wood_ground
+      }));
+      ground.rotation.x = -Math.PI / 2;
+      ground.position.y = -15.5;
+      ground.material.userData.outlineParameters = {
+        visible: false,
+        keepAlive: false
+      }
+      scene.add(ground);
+
+      ///model
+
+      function onProgress(xhr) {
+        if (xhr.lengthComputable) {
+          var percentComplete = xhr.loaded / xhr.total * 100;
+          console.log(Math.round(percentComplete, 2) + '% downloaded');
+        }
+      };
+
+      function onError(xhr) {};
+
+      var loader = new MMDLoader();
+      console.log(modelFile);
+
+      helper = new MMDAnimationHelper({
+        afterglow: 2.0
+      });
+
+      loader.load(modelFile,
+        function(mmd) {
+          function loadEnd(_mmd) {
+            mesh = _mmd;
+            mesh.position.set(0, -15, 0);
+            scene.add(mesh);
+
+
+            helper.add(mesh, {
+              physics: true
+            });
+
+            /*loader.loadVPD(vpdFiles[0], false, function(vpd) {
+              helper.pose(mesh, vpd);
+            }, onProgress, onError);*/
+
+            var objects = helper.objects.get(mesh);
+            objects.mixer = new THREE.AnimationMixer(mesh);
+
+            for (let i = 0; i < vmdFiles.length; i++) {
+              loader.loadAnimation(vmdFiles[i], mesh, function(vmd) {
+                //vmd.name = 'action' + i;
+                setAction(objects.mixer.clipAction( vmd ), i);
+                /*helper._setupMeshAnimation(mesh, vmd);
+        			helper.objects.get( mesh ).mixer.clipAction(vmd).loop = THREE.LoopOnce;
+        			helper.objects.get( mesh ).mixer.clipAction(vmd).clampWhenFinished = true;*/
+
+              },onProgress, onError);
+            }
+
+
+            ikHelper = helper.objects.get(mesh).ikSolver.createHelper();
+            ikHelper.visible = false;
+            scene.add(ikHelper);
+
+            physicsHelper = helper.objects.get(mesh).physics.createHelper();
+            physicsHelper.visible = false;
+            scene.add(physicsHelper);
+
+            world = helper.objects.get(mesh).physics.world;
+            createGround();
+            createBoxes();
+            initGUI();
+          };
+          setTimeout(loadEnd(mmd), 10);
+        },
+        onProgress, onError);
+
+      /////
+      window.addEventListener('resize', onWindowResize, false);
+
+    }
+
+    function animate() {
+      stats.begin();
+      stats.end();
+      switchAction();
+      requestAnimationFrame(animate);
+      updateBoxes();
+      render();
+    }
+
+    function render() {
+      renderer.render(scene, camera);
+      helper.update(clock.getDelta());
+      effect.render(scene, camera);
+    }
+    function setAction(clip, i){
+      myActions[i] = clip;
+      myActions[i].play();
+      myActions[i].weight = 0;
+    }
+    function switchAction(){
+      if(myActions[0]!=undefined)
+        myActions[0].setEffectiveWeight(settings.idleWeight);
+      if(myActions[1]!=undefined)
+        myActions[1].setEffectiveWeight(settings.walkWeight);
+      if(myActions[2]!=undefined)
+        myActions[2].setEffectiveWeight(settings.runWeight);
+    }
+    function initGUI() {
+      var gui = new GUI();
+      gui.domElement.id = 'gui';
+      var dictionary = mesh.morphTargetDictionary;
+
+      settings = new function(){
+        this.idleWeight = 0.0;
+        this.walkWeight = 0.0;
+        this.runWeight = 1.0;
+      }
+
+      var motion = gui.addFolder('motion');
+      motion.add(settings, 'idleWeight', 0.0, 1.0, 0.01);
+      motion.add(settings, 'walkWeight', 0.0, 1.0, 0.01);
+      motion.add(settings, 'runWeight', 0.0, 1.0, 0.01);
+
+      var morphs = gui.addFolder('Morphs');
+      var controls = {};
+      var keys = [];
+
+      function initControls() {
+        for (var key in dictionary) {
+          controls[key] = 0.0;
+        }
+
+      }
+
+      function initKeys() {
+        for (var key in dictionary) {
+          keys.push(key);
+        }
+      }
+
+      function initMorphs() {
+        for (var key in dictionary) {
+          morphs.add(controls, key, 0.0, 1.0, 0.01).onChange(onChangeMorph);
+        }
+      }
+
+      function onChangeMorph() {
+        for (var i = 0; i < keys.length; i++) {
+          var key = keys[i];
+          var value = controls[key];
+          mesh.morphTargetInfluences[i] = value;
+        }
+      }
+
+
+
+      initControls();
+      initKeys();
+      initMorphs();
+      onChangeMorph();
+
+
+    }
+    //// physics
+    function createRigidBody( size, weight, position ) {
+				var shape = new Ammo.btBoxShape( new Ammo.btVector3( size[ 0 ], size[ 1 ], size[ 2 ] ) );
+				var localInertia = new Ammo.btVector3( 0, 0, 0 );
+				shape.calculateLocalInertia( weight, localInertia );
+				var form = new Ammo.btTransform();
+				form.setIdentity();
+				form.setOrigin( new Ammo.btVector3( position.x, position.y, position.z ) );
+				var state = new Ammo.btDefaultMotionState( form );
+				var info = new Ammo.btRigidBodyConstructionInfo( weight, state, shape, localInertia );
+				return new Ammo.btRigidBody( info );
+			}
+			function createGround() {
+				var gridHelper = new THREE.GridHelper( 1000, 500 );
+				gridHelper.position.y = -15;
+				var body = createRigidBody( [ 1000, 1, 1000 ], 0, gridHelper.position );
+				body.setRestitution( 1 );
+				body.setFriction( 1 );
+				body.setDamping( 0, 0 );
+				body.setSleepingThresholds( 0, 0 );
+				world.addRigidBody( body );
+				scene.add( gridHelper );
+			}
+      function createBoxes() {
+				var geometry = new THREE.BoxBufferGeometry( 4, 4, 4 );
+				var material = new THREE.MeshPhongMaterial( { color: 0x444444 } );
+				for ( var i = 0; i < 20; i ++ ) {
+					for ( var j = 0; j < 5; j ++ ) {
+						var mesh = new THREE.Mesh( geometry, material );
+						mesh.position.x = -38 + i * 4;
+						mesh.position.y = -13 + j * 4.1 ;
+						mesh.position.z = -40 + Math.random()*50;
+						var body = createRigidBody( [ 2, 2, 2 ], 1.0, mesh.position );
+						body.setSleepingThresholds( 0, 0 );
+						world.addRigidBody( body );
+						mesh.body = body;
+						mesh.ammoTransform = new Ammo.btTransform();
+						mesh.ammoQuaternion = new Ammo.btQuaternion( 0, 0, 0, 1 );
+						boxes.push( mesh );
+						scene.add( mesh );
+					}
+				}
+			}
+      function updateBoxes() {
+				for ( var i = 0, il = boxes.length; i < il; i ++ ) {
+					var box = boxes[ i ];
+					var body = box.body;
+					var form = box.ammoTransform;
+					var q = box.ammoQuaternion;
+					body.getMotionState().getWorldTransform( form );
+					var o = form.getOrigin();
+					form.getBasis().getRotation( q );
+					box.position.set( o.x(), o.y(), o.z() );
+					box.quaternion.set( q.x(), q.y(), q.z(), q.w() );
+				}
+			}
+    function onWindowResize() {
+
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+  </script>
+
+</body>
+
+</html>

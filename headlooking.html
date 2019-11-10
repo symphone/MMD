@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html >
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" >
+  <title>MMD LookingAtMouse</title>
+  <style>
+    html {
+      overflow: hidden;
+    }
+  </style>
+</head>
+
+<body>
+  <!--script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/103/three.min.js"></script>
+  <script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/r16/Stats.min.js"></script>
+
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/libs/mmdparser.min.js"></script>
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/libs/ammo.js"></script>
+
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/loaders/TGALoader.js"></script>
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/loaders/MMDLoader.js"></script>
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/effects/OutlineEffect.js"></script>
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/animation/CCDIKSolver.js"></script>
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/animation/MMDPhysics.js"></script>
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/animation/MMDAnimationHelper.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.5.1/dat.gui.min.js"></script-->
+  <script src="js/libs/ammo.js"></script>
+  <script type="module">
+
+  import * as THREE from './build/three.module.js';
+
+  import Stats from './jsm/libs/stats.module.js';
+  import { GUI } from './jsm/libs/dat.gui.module.js';
+
+  import { OrbitControls } from './jsm/controls/OrbitControls.js';
+  import { OutlineEffect } from './jsm/effects/OutlineEffect.js';
+  import { MMDLoader } from './jsm/loaders/MMDLoader.js';
+  import { MMDAnimationHelper } from './jsm/animation/MMDAnimationHelper.js';
+
+
+    var frame, scene, camera, renderer, light, controls;
+    var stats;
+    var helper, ikHelper, physicsHelper;
+    var modelFile = 'models/Rin/Rin.pmx';
+    var vmdFiles = ['vmds/walk.vmd'];
+    var vpdFiles = ['vpds/idle.vpd'];
+    var effect;
+    var clock = new THREE.Clock(),
+      clock2 = new THREE.Clock();
+    var mesh, boneDictionary = [],
+      gcontrols, eyesSensor;
+    var mouseX = 0,
+      mouseY = 0;
+    var headBoneName = '頭';
+    var eyesParam = {
+      boneName: '左目',
+      offset: new THREE.Vector3(-0.4, 0, 0)
+    };
+    var initheadroation;
+    var period = 3;
+    var pose1 = {
+      value: 0
+    }
+    var pose2 = {
+      value: 1
+    }
+    var keys = [{
+      s: 0,
+      pose: pose1
+    }, {
+      s: 0.05,
+      pose: pose2
+    }, {
+      s: 0.1,
+      pose: pose1
+    }, {
+      s: 1,
+      pose: pose1
+    }];
+
+
+    Ammo().then(function(AmmoLib){
+      Ammo = AmmoLib;
+      init();
+      animate();
+    });
+
+    function init() {
+
+      renderer = new THREE.WebGLRenderer({
+        antialias: true
+      });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setClearColor(0xffffff);
+      document.body.appendChild(renderer.domElement);
+
+      scene = new THREE.Scene();
+
+      camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 2000);
+      camera.position.z = 20;
+
+      stats = new Stats();
+      stats.showPanel(0);
+      stats.domElement.style.position = 'absolute';
+      stats.domElement.style.left = '0px';
+      stats.domElement.style.top = '0px';
+      document.body.appendChild(stats.domElement);
+      controls = new OrbitControls(camera, renderer.domElement);
+
+      effect = new OutlineEffect(renderer);
+      ///light
+      light = new THREE.DirectionalLight(0xffffff);
+      light.position.set(50, 100, 0);
+      scene.add(light);
+
+      ///ground
+      let loaderT = new THREE.TextureLoader();
+      loaderT.crossOrigin = '';
+      let wood_ground = loaderT.load('images/wood_ground.jpg');
+      wood_ground.repeat.set(5, 5);
+      wood_ground.wrapS = THREE.RepeatWrapping;
+      wood_ground.wrapT = THREE.RepeatWrapping;
+
+      var ground = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshPhongMaterial({
+        map: wood_ground
+      }));
+      ground.rotation.x = -Math.PI / 2;
+      ground.position.y = -15.5;
+      ground.material.userData.outlineParameters = {
+        visible: false,
+        keepAlive: false
+      }
+      scene.add(ground);
+
+      ///GUI
+      gcontrols = new function() {
+        this.turn = false;
+      }
+      initGUI();
+
+      ///model
+
+      function onProgress(xhr) {
+        if (xhr.lengthComputable) {
+          var percentComplete = xhr.loaded / xhr.total * 100;
+          console.log(Math.round(percentComplete, 2) + '% downloaded');
+        }
+      };
+
+      function onError(xhr) {};
+
+      var loader = new MMDLoader();
+      console.log(modelFile);
+
+      helper = new MMDAnimationHelper({
+        afterglow: 2.0
+      });
+
+      loader.load(modelFile,
+        function(mmd) {
+          mesh = mmd;
+          mesh.position.set(0, -15, 0);
+          scene.add(mesh);
+
+          helper.add(mesh, {
+            physics: true
+          });
+
+
+          loader.loadVPD(vpdFiles[0], false, function(vpd) {
+            helper.pose(mesh, vpd);
+          }, onProgress, onError);
+
+          ikHelper = helper.objects.get(mesh).ikSolver.createHelper();
+          ikHelper.visible = false;
+          scene.add(ikHelper);
+
+          physicsHelper = helper.objects.get(mesh).physics.createHelper();
+          physicsHelper.visible = false;
+          scene.add(physicsHelper);
+
+
+          createDictionary();
+          generateEyesSensor();
+          initheadroation = mesh.skeleton.bones[boneDictionary[headBoneName]].rotation.clone();
+        },
+        onProgress, onError);
+
+      /////
+      document.addEventListener('mousemove', onMouseMove, false);
+      window.addEventListener('resize', onWindowResize, false);
+    }
+
+    function animate() {
+      stats.begin();
+      controls.update();
+      stats.end();
+
+      if (mesh != undefined)
+        keyFrame();
+
+      requestAnimationFrame(animate);
+      render();
+    }
+
+    function render() {
+      renderer.render(scene, camera);
+      helper.update(clock.getDelta());
+      effect.render(scene, camera);
+    }
+
+    function initGUI() {
+      var gui = new GUI();
+      gui.domElement.id = 'gui';
+      var headlook = gui.addFolder('HeadLookAtMouse');
+      headlook.add(gcontrols, 'turn');
+    }
+
+    function createDictionary() {
+      var bones = mesh.skeleton.bones;
+      for (var i = 0; i < bones.length; i++) {
+        var b = bones[i];
+        boneDictionary[b.name] = i;
+      }
+    }
+
+    function generateEyesSensor() {
+      var p = eyesParam;
+      var opacity = 0.2;
+      var geometry = new THREE.BoxGeometry(1, 1, 3);
+      var material = new THREE.MeshBasicMaterial({
+        color: 0x008888,
+        transparent: true,
+        opacity: opacity
+      });
+      var cube = new THREE.Mesh(geometry, material);
+      cube.name = 'eyes';
+      cube.visible = false;
+      if (p.offset !== undefined) {
+        cube.position.add(p.offset);
+      }
+      mesh.skeleton.bones[boneDictionary[p.boneName]].add(cube);
+      eyesSensor = cube;
+    }
+
+    function letModelLookAtMouse() {
+      if (gcontrols.turn === false) {
+        if(mesh!=undefined)
+         mesh.skeleton.bones[boneDictionary[headBoneName]].rotation.copy(initheadroation);
+        return;
+      }
+      //	var mesh = helper.meshes[ 0 ];
+      // this parameter is heuristic.
+      // you may need to adjust depending on model, camera, and etc.
+      var pos = new THREE.Vector3(mouseX * 1920,
+        mouseY * 1080,
+        -camera.position.z * 4);
+      pos.unproject(camera);
+      var bone = eyesSensor; //mesh.skeleton.bones[ 94 ];
+      pos.sub(bone.localToWorld(new THREE.Vector3(0, 0, 0)));
+      mesh.skeleton.bones[boneDictionary[headBoneName]].lookAt(pos);
+
+    }
+
+    function onMouseMove(event) {
+      // make mouseX/Y being between -1.0 and 1.0
+      mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+      mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+      letModelLookAtMouse();
+      //  console.log(mouseX + "  " + mouseY);
+    }
+
+    function keyFrame() {
+
+      let t = clock2.getElapsedTime() % period;
+      let i;
+      let s = t / period;
+
+
+      for (i = 1; i < keys.length; i++) {
+        if (keys[i].s > s)
+          break;
+      }
+
+      i = i - 1;
+
+      let tt = (s - keys[i].s) / (keys[i + 1].s - keys[i].s);
+      let value = (1 - tt) * keys[i].pose.value + tt * keys[i + 1].pose.value;
+      mesh.morphTargetInfluences[0] = value;
+
+    }
+
+    function onWindowResize() {
+
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+  </script>
+
+</body>
+
+</html>
