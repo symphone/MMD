@@ -49,98 +49,221 @@
   <script id="fsFilter2" type="x-shader/x-fragment">
     uniform sampler2D texture;
     varying vec2 vUv;
-    uniform float theta;
+    uniform vec2 center[100];
+  	uniform float grain;
+    uniform float radius;
+    /*uniform vec2 center1;
+    uniform vec2 center2;
+    uniform vec2 center3;
+    uniform vec2 center4;
+    uniform vec2 center5;
+    uniform vec2 center6;
+    uniform vec2 center7;
+    uniform vec2 center8;
+    uniform vec2 center9;
+    uniform vec2 center10;
+
+    uniform vec2 center11;
+    uniform vec2 center12;
+    uniform vec2 center13;
+    uniform vec2 center14;
+    uniform vec2 center15;
+    uniform vec2 center16;
+    uniform vec2 center17;
+    uniform vec2 center18;
+    uniform vec2 center19;
+    uniform vec2 center20;
+
+    uniform vec2 center21;
+    uniform vec2 center22;
+    uniform vec2 center23;
+    uniform vec2 center24;
+    uniform vec2 center25;
+    uniform vec2 center26;
+    uniform vec2 center27;
+    uniform vec2 center28;
+    uniform vec2 center29;
+    uniform vec2 center30;*/
 
 
     void main() {
       vec4 color;
 
-      //float a = 0.0, b = 3.0, c = 0.0;
-      //float _a = cos(theta)*a - sin(theta)*b, _b = sin(theta)*a + cos(theta)*b;
-      //float dis = abs( _a*vUv.x + _b*vUv.y + c)/sqrt(_a*_a+_b*_b);
-	  vec2 p0, p1, pj;
-      p0 = vec2(cos(theta) - 0.5, sin(theta) - 0.5);
-      p1 = vec2(vUv.x - 0.5, vUv.y - 0.5);
-      float pjl = dot(p0, p1)/length(p0);
-      pj = pjl*(p0/length(p0));
-      float dis = length(p1-pj);
-	  float rate = 1.0;
+      float dis[100];
+      for(int i=0;i<100;i++){
+        dis[i] = distance(vUv, center[i]);
+      }
+      /*float dis1 = distance(vUv, center1);
+      float dis2 = distance(vUv, center2);
+      float dis3 = distance(vUv, center3);
+      float dis4 = distance(vUv, center4);
+      float dis5 = distance(vUv, center5);
+      float dis6 = distance(vUv, center6);
+      float dis7 = distance(vUv, center7);
+      float dis8 = distance(vUv, center8);
+      float dis9 = distance(vUv, center9);
+      float dis10 = distance(vUv, center10);
 
-      if(dis < (0.02/rate)){
-        color = texture2D(texture, vUv);
-        if(color.rg != vec2(1.0, 1.0))
-          gl_FragColor = vec4(color.rgb, 1.0);
-        else
-          discard;
+      float dis11 = distance(vUv, center11);
+      float dis12 = distance(vUv, center12);
+      float dis13 = distance(vUv, center13);
+      float dis14 = distance(vUv, center14);
+      float dis15 = distance(vUv, center15);
+      float dis16 = distance(vUv, center16);
+      float dis17 = distance(vUv, center17);
+      float dis18 = distance(vUv, center18);
+      float dis19 = distance(vUv, center19);
+      float dis20 = distance(vUv, center20);
+
+      float dis21 = distance(vUv, center21);
+      float dis22 = distance(vUv, center22);
+      float dis23 = distance(vUv, center23);
+      float dis24 = distance(vUv, center24);
+      float dis25 = distance(vUv, center25);
+      float dis26 = distance(vUv, center26);
+      float dis27 = distance(vUv, center27);
+      float dis28 = distance(vUv, center28);
+      float dis29 = distance(vUv, center29);
+      float dis30 = distance(vUv, center30);*/
+      int flag = 0;
+      for(int i=0;i<100;i++){
+        if(dis[i] < radius){
+          vec2 uuvv = floor (vUv*grain)/grain;
+          gl_FragColor = texture2D(texture, uuvv);
+          flag = 1;
+          break;
+        }
       }
-      else if(dis < (0.04/rate)){
-        color = texture2D(texture, vUv);
-        if(color.rg != vec2(1.0, 1.0))
-          gl_FragColor = vec4(color.rgb, 0.9);
-        else
-          discard;
+      if(flag == 0)discard;
+      /*if(dis1 < radius){
+        vec2 uuvv = floor (vUv*grain)/grain;
+        color = texture2D(texture, uuvv);
       }
-      else if(dis < (0.06/rate)){
-        color = texture2D(texture, vUv);
-        if(color.rg != vec2(1.0, 1.0))
-          gl_FragColor = vec4(color.rgb, 0.8);
-        else
-          discard;
+      else if(dis2 < radius){
+        vec2 uuvv = floor (vUv*grain)/grain;
+        color = texture2D(texture, uuvv);
       }
-      else if(dis < (0.08/rate)){
-        color = texture2D(texture, vUv);
-        if(color.rg != vec2(1.0, 1.0))
-          gl_FragColor = vec4(color.rgb, 0.7);
-        else
-          discard;
+      else if(dis3 < radius){
+        vec2 uuvv = floor (vUv*grain)/grain;
+        color = texture2D(texture, uuvv);
       }
-      else if(dis < (0.10/rate)){
-        color = texture2D(texture, vUv);
-        if(color.rg != vec2(1.0, 1.0))
-          gl_FragColor = vec4(color.rgb, 0.6);
-        else
-          discard;
+      else if(dis4 < radius){
+        vec2 uuvv = floor (vUv*grain)/grain;
+        color = texture2D(texture, uuvv);
       }
-      else if(dis < (0.12/rate)){
-        color = texture2D(texture, vUv);
-        if(color.rg != vec2(1.0, 1.0))
-          gl_FragColor = vec4(color.rgb, 0.5);
-        else
-          discard;
+      else if(dis5 < radius){
+        vec2 uuvv = floor (vUv*grain)/grain;
+        color = texture2D(texture, uuvv);
       }
-      else if(dis < (0.14/rate)){
-        color = texture2D(texture, vUv);
-        if(color.rg != vec2(1.0, 1.0))
-          gl_FragColor = vec4(color.rgb, 0.4);
-        else
-          discard;
+      else if(dis6 < radius){
+        vec2 uuvv = floor (vUv*grain)/grain;
+        color = texture2D(texture, uuvv);
       }
-      else if(dis < (0.16/rate)){
-        color = texture2D(texture, vUv);
-        if(color.rg != vec2(1.0, 1.0))
-          gl_FragColor = vec4(color.rgb, 0.3);
-        else
-          discard;
+      else if(dis7 < radius){
+        vec2 uuvv = floor (vUv*grain)/grain;
+        color = texture2D(texture, uuvv);
       }
-      else if(dis < (0.18/rate)){
-        color = texture2D(texture, vUv);
-        if(color.rg != vec2(1.0, 1.0))
-          gl_FragColor = vec4(color.rgb, 0.2);
-        else
-          discard;
+      else if(dis8 < radius){
+        vec2 uuvv = floor (vUv*grain)/grain;
+        color = texture2D(texture, uuvv);
       }
-      else if(dis < (0.20/rate)){
-        color = texture2D(texture, vUv);
-        if(color.rg != vec2(1.0, 1.0))
-          gl_FragColor = vec4(color.rgb, 0.1);
-        else
-          discard;
+      else if(dis9 < radius){
+        vec2 uuvv = floor (vUv*grain)/grain;
+        color = texture2D(texture, uuvv);
       }
-      else
+      else if(dis10 < radius){
+        vec2 uuvv = floor (vUv*grain)/grain;
+        color = texture2D(texture, uuvv);
+      }
+      else if(dis11 < radius){
+        vec2 uuvv = floor (vUv*grain)/grain;
+        color = texture2D(texture, uuvv);
+      }
+      else if(dis12 < radius){
+        vec2 uuvv = floor (vUv*grain)/grain;
+        color = texture2D(texture, uuvv);
+      }
+      else if(dis13 < radius){
+        vec2 uuvv = floor (vUv*grain)/grain;
+        color = texture2D(texture, uuvv);
+      }
+      else if(dis14 < radius){
+        vec2 uuvv = floor (vUv*grain)/grain;
+        color = texture2D(texture, uuvv);
+      }
+      else if(dis15 < radius){
+        vec2 uuvv = floor (vUv*grain)/grain;
+        color = texture2D(texture, uuvv);
+      }
+      else if(dis16 < radius){
+        vec2 uuvv = floor (vUv*grain)/grain;
+        color = texture2D(texture, uuvv);
+      }
+      else if(dis17 < radius){
+        vec2 uuvv = floor (vUv*grain)/grain;
+        color = texture2D(texture, uuvv);
+      }
+      else if(dis18 < radius){
+        vec2 uuvv = floor (vUv*grain)/grain;
+        color = texture2D(texture, uuvv);
+      }
+      else if(dis19 < radius){
+        vec2 uuvv = floor (vUv*grain)/grain;
+        color = texture2D(texture, uuvv);
+      }
+      else if(dis20 < radius){
+        vec2 uuvv = floor (vUv*grain)/grain;
+        color = texture2D(texture, uuvv);
+      }
+      else if(dis21 < radius){
+        vec2 uuvv = floor (vUv*grain)/grain;
+        color = texture2D(texture, uuvv);
+      }
+      else if(dis22 < radius){
+        vec2 uuvv = floor (vUv*grain)/grain;
+        color = texture2D(texture, uuvv);
+      }
+      else if(dis23 < radius){
+        vec2 uuvv = floor (vUv*grain)/grain;
+        color = texture2D(texture, uuvv);
+      }
+      else if(dis24 < radius){
+        vec2 uuvv = floor (vUv*grain)/grain;
+        color = texture2D(texture, uuvv);
+      }
+      else if(dis25 < radius){
+        vec2 uuvv = floor (vUv*grain)/grain;
+        color = texture2D(texture, uuvv);
+      }
+      else if(dis26 < radius){
+        vec2 uuvv = floor (vUv*grain)/grain;
+        color = texture2D(texture, uuvv);
+      }
+      else if(dis27 < radius){
+        vec2 uuvv = floor (vUv*grain)/grain;
+        color = texture2D(texture, uuvv);
+      }
+      else if(dis28 < radius){
+        vec2 uuvv = floor (vUv*grain)/grain;
+        color = texture2D(texture, uuvv);
+      }
+      else if(dis29 < radius){
+        vec2 uuvv = floor (vUv*grain)/grain;
+        color = texture2D(texture, uuvv);
+      }
+      else if(dis30 < radius){
+        vec2 uuvv = floor (vUv*grain)/grain;
+        color = texture2D(texture, uuvv);
+      }
+      else{
+        //color = texture2D(texture, vUv);
         discard;
+      }*/
+      //gl_FragColor = color;
+    	//vec2 uuvv = floor (vUv*grain)/grain;
+      //gl_FragColor = texture2D(texture, vUv);
     }
   </script>
-  
 
   <script src="js/libs/ammo.js"></script>
   <script type="module">
@@ -154,8 +277,8 @@
 	  var scene, renderer, camera, stats;
     var WIDTH, HEIGHT;
     var offset;
-    var camera, scene, renderer, mesh, plan, plan2, light;
-    var bufferScene, bufferTexture, bufferCamera, material_shh, material_shh2, LEDs = [], LEDNum = 50;
+    var camera, scene, renderer, mesh, plan, plan2 = [], light;
+    var bufferScene, bufferTexture, bufferCamera, material_shh, /*material_shh2,*/ LEDs = [], LEDNum = 50;
     var modelFile = 'models/serval/serval.pmx';
     var vmdFiles = 'vmds/servaldance.vmd';
     var loader, helper, ikHelper, physicsHelper, effect;
@@ -247,32 +370,6 @@
     plan.position.y = 10;
     //scene.add(plan);
     ///////////////////////////////////////////////////////////
-	
-	///////////////////////////////////////////////////////////
-    var vertShader2 = document.getElementById('vsFilter2').innerHTML;
-    var fragShader2 = document.getElementById('fsFilter2').innerHTML;
-    material_shh2 = new THREE.ShaderMaterial({
-      uniforms: {
-        texture: {
-        	type: 't',
-          value: bufferTexture.texture
-        },
-        theta:{
-          type:'f',
-          value: 0.0
-        }
-
-      },
-      vertexShader: vertShader2,
-      fragmentShader: fragShader2
-    });
-    material_shh2.transparent = true;
-    plan2 = new THREE.Mesh (new THREE.PlaneGeometry (20, 20), material_shh2);
-    plan2.position.y = 10;
-    plan2.position.x = 0;
-    plan2.position.z = 0;
-    scene.add(plan2);
-	
     /*var vertShader2 = document.getElementById('vsFilter2').innerHTML;
     var fragShader2 = document.getElementById('fsFilter2').innerHTML;
     let allCenter = [], centers = [], plan2 = [];
@@ -315,7 +412,7 @@
 		//plan2.rotation.z = Math.PI/6 * j;
 		scene.add(plan2[j]);
 	}*/
-	//creatLED_Line();
+	creatLED_Line();
   }
 
 	function onWindowResize() {
@@ -329,16 +426,13 @@
 		stats.end();
 		requestAnimationFrame(animate);
 		var delta = clock.getDelta();
-		angle += delta*1000;
-		//angle = THREE.Math.lerp(angle, 1000, 0.001);
-		//bufferCamera.rotation.z = angle;
-		//plan2[0].rotation.z = angle;
-		//plan2[1].rotation.z = angle;
+		angle += delta*60*1000;
+		bufferCamera.rotation.z = angle;
+		plan2[0].rotation.z = angle;
+		plan2[1].rotation.z = angle;
 
 		helper.update(delta);
 		effect.render(scene, camera);
-		
-		material_shh2.uniforms["theta"].value = angle;
 
 		renderer.setRenderTarget(bufferTexture);
 		renderer.render(bufferScene, bufferCamera);
@@ -373,7 +467,7 @@
 
     loader.loadWithAnimation(model, vmd, function(mmd){
         mesh = mmd.mesh;
-        mesh.position.set(0, -10, 0);
+        mesh.position.set(0, -15, 0);
         bufferScene.add(mesh);
 
         helper.add( mesh, {
@@ -398,7 +492,7 @@
 	var vertShader2 = document.getElementById('vsFilter2').innerHTML;
     var fragShader2 = document.getElementById('fsFilter2').innerHTML;
     let allCenter = []//, plan2 = [];
-	let LEDNums = 100, num = 100;
+	let LEDNums = 224, num = 100;
 	//直
 	allCenter[0] = [];
 	for(let i=0;i<LEDNums;i++){
@@ -416,15 +510,11 @@
 		},
 		radius:{
 		  type:'f',
-		  value: 1/LEDNums/2*5
+		  value: 1/LEDNums/2*8
 		},
-		/*center:{
+		center:{
 		  type:'v2v',
 		  value: allCenter[0]
-		},*/
-		theta:{
-		  type:'f',
-		  value: 0
 		}
 	  },
 	  vertexShader: vertShader2,
@@ -438,7 +528,7 @@
 	//plan2.rotation.z = Math.PI/6 * j;
 	scene.add(plan2[0]);
 	//橫
-	/*allCenter[1] = [];
+	allCenter[1] = [];
 	for(let i=0;i<LEDNums;i++){
 	  allCenter[1][i] = new THREE.Vector2(i*2/LEDNums+2/LEDNums/2, 0.5 );
 	}
@@ -454,7 +544,7 @@
 		},
 		radius:{
 		  type:'f',
-		  value: 1/LEDNums/2*5
+		  value: 1/LEDNums/2*8
 		},
 		center:{
 		  type:'v2v',
@@ -471,7 +561,7 @@
 	plan2[1].position.z = 1;
 	//plan2[1].rotation.z = Math.PI/2;
 	//plan2.rotation.z = Math.PI/6 * j;
-	scene.add(plan2[1]);*/
+	scene.add(plan2[1]);
 	
   }
   
