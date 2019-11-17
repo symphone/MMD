@@ -49,98 +49,32 @@
   <script id="fsFilter2" type="x-shader/x-fragment">
     uniform sampler2D texture;
     varying vec2 vUv;
-    uniform float theta;
-
+    uniform vec2 center[100];
+  	uniform float grain;
+    uniform float radius;
+    
 
     void main() {
       vec4 color;
 
-      //float a = 0.0, b = 3.0, c = 0.0;
-      //float _a = cos(theta)*a - sin(theta)*b, _b = sin(theta)*a + cos(theta)*b;
-      //float dis = abs( _a*vUv.x + _b*vUv.y + c)/sqrt(_a*_a+_b*_b);
-	  vec2 p0, p1, pj;
-      p0 = vec2(cos(theta) - 0.5, sin(theta) - 0.5);
-      p1 = vec2(vUv.x - 0.5, vUv.y - 0.5);
-      float pjl = dot(p0, p1)/length(p0);
-      pj = pjl*(p0/length(p0));
-      float dis = length(p1-pj);
-	  float rate = 1.0;
-
-      if(dis < (0.02/rate)){
-        color = texture2D(texture, vUv);
-        if(color.rg != vec2(1.0, 1.0))
-          gl_FragColor = vec4(color.rgb, 1.0);
-        else
-          discard;
+      float dis[100];
+      for(int i=0;i<100;i++){
+        dis[i] = distance(vUv, center[i]);
       }
-      else if(dis < (0.04/rate)){
-        color = texture2D(texture, vUv);
-        if(color.rg != vec2(1.0, 1.0))
-          gl_FragColor = vec4(color.rgb, 0.9);
-        else
-          discard;
+      
+      int flag = 0;
+      for(int i=0;i<100;i++){
+        if(dis[i] < radius){
+          vec2 uuvv = floor (vUv*grain)/grain;
+          gl_FragColor = texture2D(texture, uuvv);
+          flag = 1;
+          break;
+        }
       }
-      else if(dis < (0.06/rate)){
-        color = texture2D(texture, vUv);
-        if(color.rg != vec2(1.0, 1.0))
-          gl_FragColor = vec4(color.rgb, 0.8);
-        else
-          discard;
-      }
-      else if(dis < (0.08/rate)){
-        color = texture2D(texture, vUv);
-        if(color.rg != vec2(1.0, 1.0))
-          gl_FragColor = vec4(color.rgb, 0.7);
-        else
-          discard;
-      }
-      else if(dis < (0.10/rate)){
-        color = texture2D(texture, vUv);
-        if(color.rg != vec2(1.0, 1.0))
-          gl_FragColor = vec4(color.rgb, 0.6);
-        else
-          discard;
-      }
-      else if(dis < (0.12/rate)){
-        color = texture2D(texture, vUv);
-        if(color.rg != vec2(1.0, 1.0))
-          gl_FragColor = vec4(color.rgb, 0.5);
-        else
-          discard;
-      }
-      else if(dis < (0.14/rate)){
-        color = texture2D(texture, vUv);
-        if(color.rg != vec2(1.0, 1.0))
-          gl_FragColor = vec4(color.rgb, 0.4);
-        else
-          discard;
-      }
-      else if(dis < (0.16/rate)){
-        color = texture2D(texture, vUv);
-        if(color.rg != vec2(1.0, 1.0))
-          gl_FragColor = vec4(color.rgb, 0.3);
-        else
-          discard;
-      }
-      else if(dis < (0.18/rate)){
-        color = texture2D(texture, vUv);
-        if(color.rg != vec2(1.0, 1.0))
-          gl_FragColor = vec4(color.rgb, 0.2);
-        else
-          discard;
-      }
-      else if(dis < (0.20/rate)){
-        color = texture2D(texture, vUv);
-        if(color.rg != vec2(1.0, 1.0))
-          gl_FragColor = vec4(color.rgb, 0.1);
-        else
-          discard;
-      }
-      else
-        discard;
+      if(flag == 0)discard;
+      
     }
   </script>
-  
 
   <script src="js/libs/ammo.js"></script>
   <script type="module">
@@ -154,8 +88,8 @@
 	  var scene, renderer, camera, stats;
     var WIDTH, HEIGHT;
     var offset;
-    var camera, scene, renderer, mesh, plan, plan2, light;
-    var bufferScene, bufferTexture, bufferCamera, material_shh, material_shh2, LEDs = [], LEDNum = 50;
+    var camera, scene, renderer, mesh, plan, plan2 = [], light;
+    var bufferScene, bufferTexture, bufferCamera, material_shh, /*material_shh2,*/ LEDs = [], LEDNum = 50;
     var modelFile = 'models/serval/serval.pmx';
     var vmdFiles = 'vmds/servaldance.vmd';
     var loader, helper, ikHelper, physicsHelper, effect;
@@ -202,12 +136,12 @@
     effect = new OutlineEffect(renderer);
 
     var gridHelper = new THREE.GridHelper( 100, 50 , 'red', 'white');
-    //scene.add(gridHelper);
+    scene.add(gridHelper);
     /////////
 
     ///////////////////
     bufferScene = new THREE.Scene();
-    bufferScene.background = new THREE.Color(0x000000);
+    bufferScene.background = new THREE.Color(0x888888);
     //bufferCamera= new THREE.PerspectiveCamera(60, 1, 0.1, 500);
     bufferCamera = new THREE.PerspectiveCamera( 60, 1, 0.1, 1000 );
     bufferCamera.position.z = 35;
@@ -247,32 +181,6 @@
     plan.position.y = 10;
     //scene.add(plan);
     ///////////////////////////////////////////////////////////
-	
-	///////////////////////////////////////////////////////////
-    var vertShader2 = document.getElementById('vsFilter2').innerHTML;
-    var fragShader2 = document.getElementById('fsFilter2').innerHTML;
-    material_shh2 = new THREE.ShaderMaterial({
-      uniforms: {
-        texture: {
-        	type: 't',
-          value: bufferTexture.texture
-        },
-        theta:{
-          type:'f',
-          value: 0.0
-        }
-
-      },
-      vertexShader: vertShader2,
-      fragmentShader: fragShader2
-    });
-    material_shh2.transparent = true;
-    plan2 = new THREE.Mesh (new THREE.PlaneGeometry (20, 20), material_shh2);
-    plan2.position.y = 10;
-    plan2.position.x = 0;
-    plan2.position.z = 0;
-    scene.add(plan2);
-	
     /*var vertShader2 = document.getElementById('vsFilter2').innerHTML;
     var fragShader2 = document.getElementById('fsFilter2').innerHTML;
     let allCenter = [], centers = [], plan2 = [];
@@ -315,7 +223,7 @@
 		//plan2.rotation.z = Math.PI/6 * j;
 		scene.add(plan2[j]);
 	}*/
-	//creatLED_Line();
+	creatLED_Line();
   }
 
 	function onWindowResize() {
@@ -329,16 +237,15 @@
 		stats.end();
 		requestAnimationFrame(animate);
 		var delta = clock.getDelta();
-		angle += delta*1000;
-		//angle = THREE.Math.lerp(angle, 1000, 0.001);
-		//bufferCamera.rotation.z = angle;
-		//plan2[0].rotation.z = angle;
-		//plan2[1].rotation.z = angle;
+		angle += 0//delta*60*1000;
+		bufferCamera.rotation.z = angle;
+		plan2[0].rotation.z = angle;
+		plan2[1].rotation.z = angle;
+		plan2[2].rotation.z = angle;
+		plan2[3].rotation.z = angle;
 
 		helper.update(delta);
 		effect.render(scene, camera);
-		
-		material_shh2.uniforms["theta"].value = angle;
 
 		renderer.setRenderTarget(bufferTexture);
 		renderer.render(bufferScene, bufferCamera);
@@ -398,11 +305,18 @@
 	var vertShader2 = document.getElementById('vsFilter2').innerHTML;
     var fragShader2 = document.getElementById('fsFilter2').innerHTML;
     let allCenter = []//, plan2 = [];
-	let LEDNums = 100, num = 100;
+	let LEDNums = 224, num = 100;
 	//直
 	allCenter[0] = [];
 	for(let i=0;i<LEDNums;i++){
-	  allCenter[0][i] = new THREE.Vector2(0.5, i*2/LEDNums+2/LEDNums/2 );
+	  //allCenter[0][i] = new THREE.Vector2(0.5, i*2/LEDNums+2/LEDNums/2 );
+	  let x = i*1/LEDNums+1/LEDNums/2;
+	  let y = i*1/LEDNums+1/LEDNums/2;
+	  let theta = 2*Math.PI/5;
+	  let x2 = x*Math.cos(theta) - y*Math.sin(theta);
+	  let y2 = x*Math.sin(theta) + y*Math.cos(theta);
+	  //console.log()
+	  allCenter[0][i] = new THREE.Vector2( x2+0.6, y2*2 );
 	}
 	let material_shh2 = new THREE.ShaderMaterial({
 	  uniforms: {
@@ -416,15 +330,11 @@
 		},
 		radius:{
 		  type:'f',
-		  value: 1/LEDNums/2*5
+		  value: 1/LEDNums/2*8
 		},
-		/*center:{
+		center:{
 		  type:'v2v',
 		  value: allCenter[0]
-		},*/
-		theta:{
-		  type:'f',
-		  value: 0
 		}
 	  },
 	  vertexShader: vertShader2,
@@ -438,9 +348,17 @@
 	//plan2.rotation.z = Math.PI/6 * j;
 	scene.add(plan2[0]);
 	//橫
-	/*allCenter[1] = [];
+	allCenter[1] = [];
 	for(let i=0;i<LEDNums;i++){
-	  allCenter[1][i] = new THREE.Vector2(i*2/LEDNums+2/LEDNums/2, 0.5 );
+	  //allCenter[1][i] = new THREE.Vector2(i*2/LEDNums+2/LEDNums/2, 0.5 );
+	  //allCenter[1][i] = new THREE.Vector2(i*2/LEDNums+2/LEDNums/2, i*2/LEDNums+2/LEDNums/2 );
+	  let x = i*1/LEDNums+1/LEDNums/2;
+	  let y = i*1/LEDNums+1/LEDNums/2;
+	  let theta = 4*Math.PI/5;
+	  let x2 = x*Math.cos(theta) - y*Math.sin(theta);
+	  let y2 = x*Math.sin(theta) + y*Math.cos(theta);
+	  console.log(y2)
+	  allCenter[1][i] = new THREE.Vector2( x2+1.4, y2+1.4 );
 	}
 	let material_shh3 = new THREE.ShaderMaterial({
 	  uniforms: {
@@ -454,7 +372,7 @@
 		},
 		radius:{
 		  type:'f',
-		  value: 1/LEDNums/2*5
+		  value: 1/LEDNums/2*8
 		},
 		center:{
 		  type:'v2v',
@@ -471,7 +389,83 @@
 	plan2[1].position.z = 1;
 	//plan2[1].rotation.z = Math.PI/2;
 	//plan2.rotation.z = Math.PI/6 * j;
-	scene.add(plan2[1]);*/
+	scene.add(plan2[1]);
+	////////////////////////
+	allCenter[2] = [];
+	for(let i=0;i<LEDNums;i++){
+	  allCenter[2][i] = new THREE.Vector2(i*2/LEDNums+2/LEDNums/2, 1-(i*2/LEDNums+2/LEDNums/2) );
+	  /*let x = i*1/LEDNums+1/LEDNums/2;
+	  let y = i*1/LEDNums+1/LEDNums/2;
+	  let x2 = x*Math.cos(Math.PI/6) - y*Math.sin(Math.PI/6);
+	  let y2 = x*Math.sin(Math.PI/6) + y*Math.cos(Math.PI/6);
+	  console.log(x2)
+	  allCenter[2][i] = new THREE.Vector2( 0.5+x2, y2 );*/
+	}
+	let material_shh4 = new THREE.ShaderMaterial({
+	  uniforms: {
+		texture: {
+			type: 't',
+		  value: bufferTexture.texture
+		},
+		grain: {
+			type: 'f',
+		  value: 512
+		},
+		radius:{
+		  type:'f',
+		  value: 1/LEDNums/2*8
+		},
+		center:{
+		  type:'v2v',
+		  value: allCenter[2]
+		}
+	  },
+	  vertexShader: vertShader2,
+	  fragmentShader: fragShader2
+	});
+	//console.log(material_shh2.uniforms.center.value[0].x);
+	plan2[2] = new THREE.Mesh (new THREE.PlaneGeometry (20, 20), material_shh4);
+	plan2[2].position.y = 10;
+	plan2[2].position.x = 0;
+	plan2[2].position.z = 1;
+	//plan2[1].rotation.z = Math.PI/2;
+	//plan2.rotation.z = Math.PI/6 * j;
+	//scene.add(plan2[2]);
+	//////////////////////
+	allCenter[3] = [];
+	for(let i=0;i<LEDNums;i++){
+	  allCenter[3][i] = new THREE.Vector2(i*2/LEDNums+2/LEDNums/2, 0.5 );
+	}
+	let material_shh5 = new THREE.ShaderMaterial({
+	  uniforms: {
+		texture: {
+			type: 't',
+		  value: bufferTexture.texture
+		},
+		grain: {
+			type: 'f',
+		  value: 512
+		},
+		radius:{
+		  type:'f',
+		  value: 1/LEDNums/2*8
+		},
+		center:{
+		  type:'v2v',
+		  value: allCenter[3]
+		}
+	  },
+	  vertexShader: vertShader2,
+	  fragmentShader: fragShader2
+	});
+	//console.log(material_shh2.uniforms.center.value[0].x);
+	plan2[3] = new THREE.Mesh (new THREE.PlaneGeometry (20, 20), material_shh5);
+	plan2[3].position.y = 10;
+	plan2[3].position.x = 0;
+	plan2[3].position.z = 1;
+	//plan2[1].rotation.z = Math.PI/2;
+	//plan2.rotation.z = Math.PI/6 * j;
+	//scene.add(plan2[3]);
 	
   }
   
