@@ -12,6 +12,11 @@
       text-align: center;
       color: #ffff00
     }
+	#toggle {
+      position: absolute;
+      left: 50vw;
+      top: 10px;
+    }
 
     body {
       overflow: hidden;
@@ -50,7 +55,7 @@
     uniform sampler2D texture;
     varying vec2 vUv;
     uniform float theta;
-
+	uniform float display;
 
     void main() {
       vec4 color;
@@ -66,7 +71,8 @@
       float dis = length(p1-pj);
 	  float rate = 1.0;
 
-      if(dis < (0.02/rate)){
+      if(display < 1.0) discard;
+	  else if(dis < (0.02/rate)){
         color = texture2D(texture, vUv);
         if(color.rg != vec2(1.0, 1.0))
           gl_FragColor = vec4(color.rgb, 1.0);
@@ -138,10 +144,12 @@
       }
       else
         discard;
+		
     }
   </script>
   
-
+  <input type="button" id="toggle" value="start">
+  <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
   <script src="js/libs/ammo.js"></script>
   <script type="module">
 
@@ -157,10 +165,10 @@
     var camera, scene, renderer, mesh, plan, plan2, light;
     var bufferScene, bufferTexture, bufferCamera, material_shh, material_shh2, LEDs = [], LEDNum = 50;
     var modelFile = 'models/serval/serval.pmx';
-    var vmdFiles = 'vmds/servaldance.vmd';
+    var vmdFiles = 'vmds/wavefile_v2.vmd';
     var loader, helper, ikHelper, physicsHelper, effect;
     var clock = new THREE.Clock();
-    var angle = 0;
+    var angle = 0, fan = new THREE.Object3D(), toggle = false;
 
 
   Ammo().then(function(AmmoLib) {
@@ -168,11 +176,22 @@
   	init();
   	animate();
   });
+  $("#toggle").click(function() {
+      toggle = !toggle;
+      if (toggle){
+        $(this).val("stop");
+		material_shh2.uniforms["display"].value = 1.0;
+	  }
+      else{
+        $(this).val("start");
+		material_shh2.uniforms["display"].value = 0.0;
+	  }
+    });
 
 
 	function init() {
 	  scene = new THREE.Scene();
-	  scene.background = new THREE.Color(0x000000);
+	  scene.background = new THREE.Color(0x888888);
 
 	  renderer = new THREE.WebGLRenderer({antialias:true});
 	   WIDTH = window.innerWidth;
@@ -207,7 +226,7 @@
 
     ///////////////////
     bufferScene = new THREE.Scene();
-    bufferScene.background = new THREE.Color(0x000000);
+    bufferScene.background = new THREE.Color(0xffff00);
     //bufferCamera= new THREE.PerspectiveCamera(60, 1, 0.1, 500);
     bufferCamera = new THREE.PerspectiveCamera( 60, 1, 0.1, 1000 );
     bufferCamera.position.z = 35;
@@ -260,6 +279,10 @@
         theta:{
           type:'f',
           value: 0.0
+        },
+        display:{
+          type:'f',
+          value: 0.0
         }
 
       },
@@ -272,6 +295,17 @@
     plan2.position.x = 0;
     plan2.position.z = 0;
     scene.add(plan2);
+	
+	let part1 = new THREE.Mesh(new THREE.BoxGeometry(20*Math.sqrt(2),2,1), new THREE.MeshBasicMaterial({color:'black'}));
+	part1.position.set(0, 10, -1);
+	part1.rotation.z = -Math.PI/4;
+	let part2 = new THREE.Mesh(new THREE.CylinderGeometry(2,2,3,32), new THREE.MeshBasicMaterial({color:'black'}));
+	part2.position.set(0, 10, -3);
+	part2.rotation.x = Math.PI/2;
+	let part3 = new THREE.Mesh(new THREE.CylinderGeometry(2.5,2.5,40,32), new THREE.MeshBasicMaterial({color:'black'}));
+	part3.position.set(0,-8,-6);
+	fan.add(part1, part2, part3);
+	scene.add(fan);
 	
     /*var vertShader2 = document.getElementById('vsFilter2').innerHTML;
     var fragShader2 = document.getElementById('fsFilter2').innerHTML;
@@ -337,8 +371,10 @@
 
 		helper.update(delta);
 		effect.render(scene, camera);
-		
-		material_shh2.uniforms["theta"].value = angle;
+		if(toggle){
+			fan.children[0].rotation.z = -Math.PI/4 + angle - Math.cos(angle) + Math.sin(angle);
+			material_shh2.uniforms["theta"].value = angle;
+		}
 
 		renderer.setRenderTarget(bufferTexture);
 		renderer.render(bufferScene, bufferCamera);
