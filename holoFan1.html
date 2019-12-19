@@ -147,63 +147,72 @@
 		else if(dis < (0.04/rate)){
 			color = texture2D(texture, vUv);
 			if(color.rg != vec2(1.0, 1.0))
-			  gl_FragColor = vec4(color.rgb, 0.9);
+			  //gl_FragColor = vec4(color.rgb, 0.9);
+			  gl_FragColor = vec4(color.rgb, 1.0);
 			else
 			  discard;
 		}
 		else if(dis < (0.06/rate)){
 			color = texture2D(texture, vUv);
 			if(color.rg != vec2(1.0, 1.0))
-			  gl_FragColor = vec4(color.rgb, 0.8);
+			  //gl_FragColor = vec4(color.rgb, 0.8);
+			  gl_FragColor = vec4(color.rgb, 1.0);
 			else
 			  discard;
 		}
 		else if(dis < (0.08/rate)){
 			color = texture2D(texture, vUv);
 			if(color.rg != vec2(1.0, 1.0))
-			  gl_FragColor = vec4(color.rgb, 0.7);
+			  //gl_FragColor = vec4(color.rgb, 0.7);
+			  gl_FragColor = vec4(color.rgb, 1.0);
 			else
 			  discard;
 		}
 		else if(dis < (0.10/rate)){
 			color = texture2D(texture, vUv);
 			if(color.rg != vec2(1.0, 1.0))
-			  gl_FragColor = vec4(color.rgb, 0.6);
+			  //gl_FragColor = vec4(color.rgb, 0.6);
+			  gl_FragColor = vec4(color.rgb, 1.0);
 			else
 			  discard;
 		}
 		else if(dis < (0.12/rate)){
 			color = texture2D(texture, vUv);
 			if(color.rg != vec2(1.0, 1.0))
-			  gl_FragColor = vec4(color.rgb, 0.5);
+			  //gl_FragColor = vec4(color.rgb, 0.5);
+			  gl_FragColor = vec4(color.rgb, 1.0);
 			else
 			  discard;
 		}
 		else if(dis < (0.14/rate)){
 			color = texture2D(texture, vUv);
 			if(color.rg != vec2(1.0, 1.0))
-			  gl_FragColor = vec4(color.rgb, 0.4);
+			  //gl_FragColor = vec4(color.rgb, 0.4);
+			  gl_FragColor = vec4(color.rgb, 1.0);
 			else
 			  discard;
 		}
 		else if(dis < (0.16/rate)){
 			color = texture2D(texture, vUv);
 			if(color.rg != vec2(1.0, 1.0))
-			  gl_FragColor = vec4(color.rgb, 0.3);
+			  //gl_FragColor = vec4(color.rgb, 0.3);
+			  gl_FragColor = vec4(color.rgb, 1.0);
 			else
 			  discard;
 		}
 		else if(dis < (0.18/rate)){
 			color = texture2D(texture, vUv);
 			if(color.rg != vec2(1.0, 1.0))
-			  gl_FragColor = vec4(color.rgb, 0.2);
+			  //gl_FragColor = vec4(color.rgb, 0.2);
+			  gl_FragColor = vec4(color.rgb, 1.0);
 			else
 			  discard;
 		}
 		else if(dis < (0.20/rate)){
 			color = texture2D(texture, vUv);
 			if(color.rg != vec2(1.0, 1.0))
-			  gl_FragColor = vec4(color.rgb, 0.1);
+			  //gl_FragColor = vec4(color.rgb, 0.1);
+			  gl_FragColor = vec4(color.rgb, 1.0);
 			else
 			  discard;
 		}
@@ -295,8 +304,9 @@
 
     effect = new OutlineEffect(renderer);
 
-    var gridHelper = new THREE.GridHelper( 100, 50 , 'red', 'white');
-    //scene.add(gridHelper);
+    var gridHelper = new THREE.GridHelper( 100, 20 , 'red', 'white');
+    scene.add(gridHelper);
+	gridHelper.position.y = -20;
     /////////
 
     ///////////////////
@@ -359,7 +369,23 @@
 	var gui = new dat.GUI();
 	gui.domElement.id = 'gui';
 
-	gui.add(gcontrols, 'speed', 1, 10);
+	gui.add(gcontrols, 'speed', 0.1, 30);
+	
+	//////////////
+	//stage
+	let loader = new THREE.TextureLoader();
+  	let tex  = loader.load ("https://i.imgur.com/p8CRm9W.jpg");
+  	tex.repeat.set (1,1);
+  	tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+	
+	let floor = new THREE.Mesh(new THREE.BoxGeometry(40,10,20), new THREE.MeshBasicMaterial({color:0x445555}))
+	floor.position.set(0,-15,0);
+	scene.add(floor);
+	
+	let back = new THREE.Mesh(new THREE.PlaneGeometry(40,25), new THREE.MeshBasicMaterial({map:tex}));
+	back.position.set(0,2.5,-10);
+	scene.add(back);
+	
 	
     
   }
@@ -411,7 +437,7 @@
 
     loader.loadWithAnimation(model, vmd, function(mmd){
         mesh = mmd.mesh;
-        mesh.position.set(0, -10, 0);
+        mesh.position.set(0, -15, 0);
         bufferScene.add(mesh);
 
         helper.add( mesh, {

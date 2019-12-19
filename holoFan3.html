@@ -276,8 +276,9 @@
 	}
 	void lineCut(float dis, float dis2, float dis3, float rate){
 		vec4 color;
+		color = texture2D(texture, vUv);
 		if(display < 1.0) discard;
-		else if(dis < (0.02/rate)){
+		/*else if(dis < (0.02/rate)){
 			color = texture2D(texture, vUv);
 			if(color.rg != vec2(1.0, 1.0))
 			  gl_FragColor = vec4(color.rgb, 1.0);
@@ -486,6 +487,12 @@
 			  gl_FragColor = vec4(color.rgb, 0.1);
 			else
 			  discard;
+		}*/
+		else if(dis < (0.2/rate) || dis2 < (0.2/rate) || dis3 < (0.2/rate)){
+			if(color.rg != vec2(1.0, 1.0))
+			  gl_FragColor = vec4(color.rgb, 1.0);
+			else
+			  discard;
 		}
 		else
 			discard;
@@ -590,7 +597,8 @@
     effect = new OutlineEffect(renderer);
 
     var gridHelper = new THREE.GridHelper( 100, 50 , 'red', 'white');
-    //scene.add(gridHelper);
+    scene.add(gridHelper);
+	gridHelper.position.y = -20;
     /////////
 
     ///////////////////
@@ -653,7 +661,22 @@
 	var gui = new dat.GUI();
 	gui.domElement.id = 'gui';
 
-	gui.add(gcontrols, 'speed', 1, 10);
+	gui.add(gcontrols, 'speed', 0.1, 30);
+	
+	//////////////
+	//stage
+	let loader = new THREE.TextureLoader();
+  	let tex  = loader.load ("https://i.imgur.com/p8CRm9W.jpg");
+  	tex.repeat.set (1,1);
+  	tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+	
+	let floor = new THREE.Mesh(new THREE.BoxGeometry(40,10,20), new THREE.MeshBasicMaterial({color:0x445555}))
+	floor.position.set(0,-15,0);
+	scene.add(floor);
+	
+	let back = new THREE.Mesh(new THREE.PlaneGeometry(40,25), new THREE.MeshBasicMaterial({map:tex}));
+	back.position.set(0,2.5,-10);
+	scene.add(back);
 	
     
   }
@@ -705,7 +728,7 @@
 
     loader.loadWithAnimation(model, vmd, function(mmd){
         mesh = mmd.mesh;
-        mesh.position.set(0, -10, 0);
+        mesh.position.set(0, -15, 0);
         bufferScene.add(mesh);
 
         helper.add( mesh, {
